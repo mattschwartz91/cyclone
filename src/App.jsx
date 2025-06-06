@@ -1,15 +1,20 @@
-import './App.css'
+import React from 'react'
+import Navbar from "./components/Navbar"
+import Map from "./components/Map"
+import Button from "./components/GenerateButton"
 
 function App() {
 
     return (
         <>
-        
-            <div className="bg-blue-100">
-                <h1>Cyclone</h1>
-            </div>
-                
+        <Navbar/>
+        <div className="justify-center p-4">
+            <Map/>
+            <Button/>
+        </div>
+            
         </>
+
     )
 }
 

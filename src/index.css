@@ -27,7 +27,7 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  place-items: center;
+  background-color: #4ED7F1;
   min-width: 320px;
   min-height: 100vh;
 }
