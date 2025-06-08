@@ -3,6 +3,10 @@ import axios from 'axios';
 import Map from './map/Map';
 import './App.css';
 
+import GoogleLogo from './assets/google-logo.svg';
+import FacebookLogo from './assets/facebook-logo.svg';
+import XLogo from './assets/x-logo.svg';
+
 function App() {
   const [rides, setRides] = useState([]);
   const [startAddress, setStartAddress] = useState('');
@@ -31,11 +35,26 @@ function App() {
       .catch(error => console.error('Error adding ride:', error));
   };
 
+  const handleSocialLogin = (provider) => {
+    alert(`Login with ${provider} clicked (placeholder)`);
+  };
+
   return (
     <div className="App">
       <header className="header">
         <h1>Cyclone</h1>
-        <button className="login-button">Log In/Sign Up</button>
+        <div className="auth-buttons">
+          <button className="login-button">Log In/Sign Up</button>
+          <button className="social-login-button" onClick={() => handleSocialLogin('Google')}>
+            <img src={GoogleLogo} alt="Google Logo" />
+          </button>
+          <button className="social-login-button" onClick={() => handleSocialLogin('Facebook')}>
+            <img src={FacebookLogo} alt="Facebook Logo" />
+          </button>
+          <button className="social-login-button" onClick={() => handleSocialLogin('X')}>
+            <img src={XLogo} alt="X Logo" />
+          </button>
+        </div>
       </header>
       <div className="container">
         <div className="sidebar">

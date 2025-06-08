@@ -22,6 +22,12 @@
   font-weight: normal;
 }
 
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .login-button {
   background-color: #FFFA8D;
   color: #000000;
@@ -35,6 +41,28 @@
 
 .login-button:hover {
   background-color: #E8E07E;
+}
+
+.social-login-button {
+  background-color: #FFFFFF;
+  border: 1px solid #666666;
+  border-radius: 4px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.social-login-button img {
+  width: 24px;
+  height: 24px;
+}
+
+.social-login-button:hover {
+  background-color: #A8F1FF;
 }
 
 .container {
@@ -149,6 +177,7 @@ button:hover {
   margin: 10px 0;
   padding: 10px;
   background-color: #6FE6FC;
+  border-radius: 4px;
   font-size: 14px;
   color: #000000;
 }
