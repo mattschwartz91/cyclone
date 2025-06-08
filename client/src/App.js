@@ -9,14 +9,12 @@ function App() {
   const [endAddress, setEndAddress] = useState('');
   const [rideType, setRideType] = useState('');
 
-  // Fetch rides on mount
   useEffect(() => {
     axios.get(`${process.env.REACT_APP_API_URL}/rides`)
       .then(response => setRides(response.data))
       .catch(error => console.error('Error fetching rides:', error));
   }, []);
 
-  // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
     axios.post(`${process.env.REACT_APP_API_URL}/rides`, {
@@ -37,6 +35,7 @@ function App() {
     <div className="App">
       <header className="header">
         <h1>Cyclone</h1>
+        <button className="login-button">Log In/Sign Up</button>
       </header>
       <div className="container">
         <div className="sidebar">
