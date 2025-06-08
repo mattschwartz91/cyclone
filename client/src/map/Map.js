@@ -1,4 +1,3 @@
-import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -11,7 +10,7 @@ L.Icon.Default.mergeOptions({
 });
 
 function Map({ rides }) {
-  const defaultCenter = [39.9526, -75.1652];
+  const defaultCenter = [39.9526, -75.1652]; // Philadelphia
   return (
     <MapContainer center={defaultCenter} zoom={13} scrollWheelZoom={false} className="map-container">
       <TileLayer
@@ -21,7 +20,8 @@ function Map({ rides }) {
       {rides.map(ride => (
         <Marker key={ride.id} position={defaultCenter}>
           <Popup>
-            Ride {ride.id}: From {ride.startAddress} to {ride.endAddress}
+            Ride {ride.id}: From {ride.startAddress} to {ride.endAddress} <br />
+            Type: {ride.rideType}
           </Popup>
         </Marker>
       ))}

@@ -7,32 +7,39 @@ function App() {
   const [rides, setRides] = useState([]);
   const [startAddress, setStartAddress] = useState('');
   const [endAddress, setEndAddress] = useState('');
+  const [rideType, setRideType] = useState('');
 
+  // Fetch rides on mount
   useEffect(() => {
     axios.get(`${process.env.REACT_APP_API_URL}/rides`)
       .then(response => setRides(response.data))
       .catch(error => console.error('Error fetching rides:', error));
   }, []);
 
+  // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
     axios.post(`${process.env.REACT_APP_API_URL}/rides`, {
       startAddress,
       endAddress,
+      rideType,
     })
       .then(response => {
         setRides([...rides, response.data]);
         setStartAddress('');
         setEndAddress('');
+        setRideType('');
       })
       .catch(error => console.error('Error adding ride:', error));
   };
 
   return (
     <div className="App">
-      <h1>Cyclone</h1>
+      <header className="header">
+        <h1>Cyclone</h1>
+      </header>
       <div className="container">
-        <div className="left-panel">
+        <div className="sidebar">
           <form onSubmit={handleSubmit}>
             <input
               type="text"
@@ -49,17 +56,53 @@ function App() {
               required
             />
             <button type="submit">Add Ride</button>
+            <div className="ride-mode-container">
+              <h3>Ride Mode</h3>
+              <div className="ride-type-options">
+                <label className="ride-type-label">
+                  <input
+                    type="radio"
+                    name="rideType"
+                    value="The Sight Seer"
+                    checked={rideType === 'The Sight Seer'}
+                    onChange={(e) => setRideType(e.target.value)}
+                  />
+                  The Sight Seer
+                </label>
+                <label className="ride-type-label">
+                  <input
+                    type="radio"
+                    name="rideType"
+                    value="The Crit Racer"
+                    checked={rideType === 'The Crit Racer'}
+                    onChange={(e) => setRideType(e.target.value)}
+                  />
+                  The Crit Racer
+                </label>
+                <label className="ride-type-label">
+                  <input
+                    type="radio"
+                    name="rideType"
+                    value="Social Ride Group Leader"
+                    checked={rideType === 'Social Ride Group Leader'}
+                    onChange={(e) => setRideType(e.target.value)}
+                  />
+                  Social Ride Group Leader
+                </label>
+              </div>
+            </div>
           </form>
-          <ul>
+          <ul className="ride-list">
             {rides.map(ride => (
               <li key={ride.id}>
-                From: {ride.startAddress} <br /> To: {ride.endAddress}
+                From: {ride.startAddress} <br />
+                To: {ride.endAddress} <br />
+                Type: {ride.rideType}
               </li>
             ))}
           </ul>
         </div>
-        <div className="right-panel">
-          <h2>Ride Map</h2>
+        <div className="map-panel">
           <Map rides={rides} />
         </div>
       </div>
