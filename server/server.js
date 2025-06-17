@@ -1,12 +1,19 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs')
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-let rides = [
-];
+let rides = [];
+try {
+  const data = fs.readFileSync(DB_FILE)
+  rides = JSON.parse(data);
+}
+catch (err) {
+  rides = [];
+}
 
 app.get('/api/rides', (req, res) => {
   res.json(rides);
@@ -20,6 +27,7 @@ app.post('/api/rides', (req, res) => {
     rideType: req.body.rideType || 'None',
   };
   rides.push(newRide);
+  fs.writeFileSync(DB_FILE, JSON.stringify(rides, null, 2))
   res.status(201).json(newRide);
 });
 
