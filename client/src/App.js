@@ -12,16 +12,19 @@ function App() {
   const [startAddress, setStartAddress] = useState('');
   const [endAddress, setEndAddress] = useState('');
   const [rideType, setRideType] = useState('');
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
-    axios.get(`${process.env.REACT_APP_API_URL}/rides`)
+    if (!userId) return;
+    axios.get(`${process.env.REACT_APP_API_URL}/rides/${userId}`)
       .then(response => setRides(response.data))
       .catch(error => console.error('Error fetching rides:', error));
-  }, []);
+  }, [userId]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     axios.post(`${process.env.REACT_APP_API_URL}/rides`, {
+      userId,
       startAddress,
       endAddress,
       rideType,
@@ -35,8 +38,29 @@ function App() {
       .catch(error => console.error('Error adding ride:', error));
   };
 
-  const handleSocialLogin = (provider) => {
+  const handleSaveRoute = () => {
+  if (!userId) return;
+  axios.post(`${process.env.REACT_APP_API_URL}/rides`, {
+    userId,
+    startAddress,
+    endAddress,
+    rideType,
+  })
+    .then(response => {
+      setRides([...rides, response.data]);
+      alert('Route saved!');
+    })
+    .catch(error => console.error('Error saving route:', error));
+};
+
+  /* const handleSocialLogin = (provider) => {
     alert(`Login with ${provider} clicked (placeholder)`);
+  };*/
+  // dummy login
+  const handleSocialLogin = (provider) => {
+    const simulatedUserId = `${provider.toLowerCase()}-user-123`;
+    setUserId(simulatedUserId);
+    alert(`Logged in as ${simulatedUserId}`);
   };
 
   return (
@@ -73,7 +97,21 @@ function App() {
               onChange={(e) => setEndAddress(e.target.value)}
               required
             />
-            <button type="submit">Add Ride</button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button type="submit">Generate Route</button>
+              <button
+              type="button"
+              onClick={handleSaveRoute}
+              disabled={!userId}
+              style={{
+                backgroundColor: userId ? '#2196F3' : '#ccc',
+                color: userId ? 'white' : '#666',
+                cursor: userId ? 'pointer' : 'not-allowed'
+              }}
+              >
+                Save Route
+                </button>
+                </div>
             <div className="ride-mode-container">
               <h3>Ride Mode</h3>
               <div className="ride-type-options">
