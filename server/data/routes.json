@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1735069200000,
+    "userId": "user123",
+    "routeName": "Morning Commute",
+    "waypoints": [
+      { "lat": 40.7128, "lng": -74.0060, "name": "Home" },
+      { "lat": 40.7589, "lng": -73.9851, "name": "Work" }
+    ],
+    "createdAt": "2025-06-24T15:32:00.000Z"
+  }
+]
