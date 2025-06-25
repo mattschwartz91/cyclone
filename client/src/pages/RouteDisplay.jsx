@@ -37,11 +37,51 @@ export default function RouteDisplay() {
         pointsOfInterest: false,
     });
 
+    // Le - user sign in
+    const user = JSON.parse(localStorage.getItem('user'));
+
     // generate routes when button clicked
     // TODO: implement, should run when triggered via button or page loads
     useEffect(() => {
         // TODO: create route to backend for route generation
     }, []);
+
+    const handleSaveRoute = async () => {
+        if (!user || !user.id) {
+            alert('Please log in to save routes.');
+            return;
+        }
+
+        if (!routeName || !rawStats.distanceKm || !cueSheet.length) {
+            alert('Route name, stats, and cue sheet are required to save the route.');
+        return;
+        }
+        try {
+            const res = await fetch('/api/routes/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User': JSON.stringify(user),
+            },
+            body: JSON.stringify({
+                routeName,
+                rawStats,
+                cueSheet,
+                preferences, // Optional: include preferences for context
+            }),
+        });
+      
+        const data = await res.json();
+        if (res.ok) {
+            alert('Route saved successfully!');
+        } else {
+            alert(data.error || 'Failed to save route.');
+        }
+        } catch (err) {
+            console.error('Error saving route:', err);
+            alert('An error occurred while saving the route.');
+        }
+    };
 
     return (
         <div className="bg-base min-h-screen text-gray-800">
@@ -77,7 +117,13 @@ export default function RouteDisplay() {
                             <CueSheet cueSheet={cueSheet} />
                             <Button as="a" href="/chill_hills.gpx" download="chill_hills.gpx" className="w-full">
                                 Export GPX
+                            {/* Le - add save button */}
                             </Button>
+                            {user && (
+                                <Button onClick={handleSaveRoute} className="w-full bg-green-600 hover:bg-green-700">
+                                    Save Route
+                                    </Button>
+                                    )}
                         </div>
                     </div>
                 </div>

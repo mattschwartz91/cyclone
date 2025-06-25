@@ -19,12 +19,40 @@ function requireAuth(req, res, next) {
   next();
 }
 
+router.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  // dummy user
+  const testUser = { id: 'user123', username: 'test' };
+  if (username === 'test' && password === 'password') {
+    res.json({ user: testUser });
+  } else {
+    res.status(401).json({ error: 'Invalid username or password' });
+  }
+
+  // Future: Database query
+  /*
+  try {
+    const result = await pool.query('SELECT id, username FROM users WHERE username = $1 AND password = $2', [username, password]);
+    if (result.rows.length > 0) {
+      res.json({ user: result.rows[0] });
+    } } catch (err) {
+      console.error('Login error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  */
+});
+
 // save a new route
 router.post('/api/routes/save', requireAuth, async (req, res) => {
   ensureDataFile();
 
   const userId = req.user.id;
-  const { routeName, waypoints } = req.body;
+  const { routeName, waypoints, rawStats, cueSheet, preferences } = req.body;
 
   if (!routeName || !waypoints) {
     return res.status(400).json({ error: 'Missing route name or waypoints' });
@@ -45,15 +73,22 @@ router.post('/api/routes/save', requireAuth, async (req, res) => {
     id: Date.now(),
     userId,
     routeName,
-    waypoints,
+    waypoints: waypoints || [],
+    rawStats: rawStats || null,
+    cueSheet: cueSheet || [], 
+    preferences: preferences || null,
     createdAt: new Date().toISOString(),
   };
-  const raw = fs.readFileSync(dataPath);
-  const routes = JSON.parse(raw);
-  routes.push(newRoute);
-  fs.writeFileSync(dataPath, JSON.stringify(routes, null, 2));
-
-  res.json({ message: 'Route saved to successfully' });
+  try {
+    const raw = fs.readFileSync(dataPath);
+    const routes = JSON.parse(raw);
+    routes.push(newRoute);
+    fs.writeFileSync(dataPath, JSON.stringify(routes, null, 2));
+    res.json({ message: 'Route saved to successfully' });}
+  catch (err) {
+    console.error('Error saving route:', err);
+    res.status(500).json({ error: 'Failed to save route' });
+  }
 });
 
 // fetch a saved route
@@ -66,12 +101,15 @@ router.get('/api/routes', requireAuth, async (req, res) => {
     [req.user.id]
   );
   res.json(result.rows);*/
-
-  const raw = fs.readFileSync(dataPath);
-  const routes = JSON.parse(raw);
-  const userRoutes = routes.filter(route => route.userId === req.user.id);
-
-  res.json(userRoutes || []);
+  try {
+    const raw = fs.readFileSync(dataPath);
+    const routes = JSON.parse(raw);
+    const userRoutes = routes.filter(route => route.userId === req.user.id);
+    res.json(userRoutes || []);}
+  catch (err) {
+    console.error('Error fetching routes:', err);
+    res.status(500).json({ error: 'Failed to fetch routes' });
+  }
 
 });
 

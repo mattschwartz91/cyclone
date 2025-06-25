@@ -1,12 +1,12 @@
 [
   {
-    "id": 1735069200000,
+    "id": 1624567890123,
     "userId": "user123",
-    "routeName": "Morning Commute",
-    "waypoints": [
-      { "lat": 40.7128, "lng": -74.0060, "name": "Home" },
-      { "lat": 40.7589, "lng": -73.9851, "name": "Work" }
-    ],
-    "createdAt": "2025-06-24T15:32:00.000Z"
+    "routeName": "Default Route",
+    "waypoints": [],
+    "rawStats": { "distanceKm": 20, "elevationM": 300 },
+    "cueSheet": [{ "instruction": "Turn left", "distance": 5 }],
+    "preferences": { "startingPoint": [39.95, -75.16], "distanceTarget": 20, "elevationTarget": 1000 },
+    "createdAt": "2025-06-24T22:11:00.000Z"
   }
 ]
