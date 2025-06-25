@@ -6,10 +6,15 @@ const app = express();
 const PORT = 3000;
 
 // dummy user
-app.use(cors());
-app.use(express.json());
 app.use((req, res, next) => {
-  req.user = { id: 1 }; // 🔐 Replace with real auth logic later
+  const rawUser = req.headers['x-user'];
+  if (rawUser) {
+    try {
+      req.user = JSON.parse(rawUser);
+    } catch {
+      req.user = null;
+    }
+  }
   next();
 });
 

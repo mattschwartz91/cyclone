@@ -2,9 +2,9 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const router = express.Router();
+// local json storage for now
 const dataPath = path.join(__dirname, '../data/routes.json');
-
-// const router = express.Router();
+// for future postgeSQL
 // const pool = require('../db');
 
 const ensureDataFile = () => {
@@ -15,7 +15,7 @@ const ensureDataFile = () => {
 
 // dummy user
 function requireAuth(req, res, next) {
-  if (!req.user || !req.user.id) return res.status(401).json({ error: 'Unauthorized' });
+  if (!req.user || !req.user.id) return res.status(401).json({ error: 'Please log in first' });
   next();
 }
 
@@ -71,7 +71,7 @@ router.get('/api/routes', requireAuth, async (req, res) => {
   const routes = JSON.parse(raw);
   const userRoutes = routes.filter(route => route.userId === req.user.id);
 
-  res.json(userRoutes);
+  res.json(userRoutes || []);
 
 });
 
