@@ -56,31 +56,31 @@ return (
             <h1 className="text-2xl font-bold">Cyclone</h1>
             <nav className="flex space-x-2 sm:space-x-4">
               {location.pathname !== '/' && (
-                <Link to="/" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-white bg-blue-500 border border-2 border-white hover:bg-blue-600 hover:underline rounded transition-colors">
+                <Link to="/" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-grey-800 bg-white border border-2 border-white hover:bg-grey-100 hover:underline rounded transition-colors">
                   Home
                 </Link>
               )}
               {location.pathname !== '/routes' && (
-                <Link to="/routes" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-white bg-blue-500 border border-2 border-white hover:bg-blue-600 hover:underline rounded transition-colors">
+                <Link to="/routes" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-grey-800 bg-white border border-2 border-white hover:bg-bg-grey-100 hover:underline rounded transition-colors">
                   Routes
                 </Link>
               )}
               {user ? (
                 <>
                   {location.pathname !== '/plan' && (
-                    <Link to="/plan" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-white bg-blue-500 border border-2 border-white hover:bg-blue-600 hover:underline rounded transition-colors">
+                    <Link to="/plan" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-grey-800 bg-white border border-2 border-white hover:bg-grey-100 hover:underline rounded transition-colors">
                       Plan
                     </Link>
                   )}
                   <button
                     onClick={handleLogout}
-                    className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-white bg-blue-500 border border-2 border-white hover:bg-blue-600 hover:underline rounded transition-colors"
+                    className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-grey-800 bg-white border border-2 border-white hover:bg-grey-100 hover:underline rounded transition-colors"
                   >
                     Logout
                   </button>
                 </>
               ) : (location.pathname !== '/login' && (
-                  <Link to="/login" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-white bg-blue-500 border border-2 border-white hover:bg-blue-600 hover:underline rounded transition-colors">
+                  <Link to="/login" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-grey-800 bg-white border border-2 border-white hover:bg-grey-100 hover:underline rounded transition-colors">
                     Login
                   </Link>
                 )

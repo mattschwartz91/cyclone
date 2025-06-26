@@ -20,7 +20,7 @@ export default function Login() {
     }
 
     try {
-      const res = await fetch('/api/login', {
+      const res = await fetch('http://localhost:3000/api/login', { // hard coded path for debuggin, change to relative path later
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -73,15 +73,16 @@ export default function Login() {
             />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+          <Button type="submit" className="w-full ${
+              isFormValid
+                ? 'bg-black hover:bg-gray-800 text-white'
+                : 'bg-gray-400 text-gray-700 cursor-not-allowed'
+            }`"> 
             Log In
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-gray-600">
-          Don't have an account? Contact{' '}
-          <a href="mailto:webmaster@cyclone.com" className="text-blue-500 hover:underline">
-            webmaster@cyclone.com
-          </a>
+          Register
         </p>
         <p className="mt-2 text-center text-sm text-gray-600">
           <Link to="/" className="text-blue-500 hover:underline">
