@@ -29,9 +29,9 @@ router.post('/api/login', async (req, res) => {
   // dummy user
   const testUser = { id: 'user123', username: 'test' };
   if (username === 'test' && password === 'password') {
-    res.json({ user: testUser });
+    return res.json({ user: testUser });
   } else {
-    res.status(401).json({ error: 'Invalid username or password' });
+    return res.status(401).json({ error: 'Invalid username or password' });
   }
 
   // Future: Database query
@@ -84,10 +84,10 @@ router.post('/api/routes/save', requireAuth, async (req, res) => {
     const routes = JSON.parse(raw);
     routes.push(newRoute);
     fs.writeFileSync(dataPath, JSON.stringify(routes, null, 2));
-    res.json({ message: 'Route saved to successfully' });}
+    return res.json({ message: 'Route saved to successfully' });}
   catch (err) {
     console.error('Error saving route:', err);
-    res.status(500).json({ error: 'Failed to save route' });
+    return res.status(500).json({ error: 'Failed to save route' });
   }
 });
 
@@ -108,7 +108,7 @@ router.get('/api/routes', requireAuth, async (req, res) => {
     res.json(userRoutes || []);}
   catch (err) {
     console.error('Error fetching routes:', err);
-    res.status(500).json({ error: 'Failed to fetch routes' });
+    return res.status(500).json({ error: 'Failed to fetch routes' });
   }
 
 });
