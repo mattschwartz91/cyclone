@@ -11,7 +11,9 @@ export default function CueSheet({ cueSheet }) {
                     </div>
                 ) : (
                     <ul className="text-sm list-disc pl-4 space-y-1">
-                        {cueSheet.map((step, idx) => <li key={idx}>{step}</li>)}
+                        {cueSheet.map((step, idx) => <li key={idx}>{typeof step === 'string' 
+                        ? step : `${step.instruction} (${step.distance} m)`
+                    }</li>)}
                     </ul>
                 )}
             </div>

@@ -4,8 +4,8 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet-gpx';
 
-export default function GpxLoader({ onStatsReady, onCuesReady }) {
-    const map = useMap();
+export default function GpxLoader({ setWaypoints, setRawStats, setCueSheet }) {
+    /*const map = useMap();
 
     useEffect(() => {
         const gpx = new L.GPX('/chill_hills.gpx', {
@@ -28,7 +28,29 @@ export default function GpxLoader({ onStatsReady, onCuesReady }) {
         });
 
         gpx.addTo(map);
-    }, [map, onStatsReady, onCuesReady]);
+    }, [map, onStatsReady, onCuesReady]);*/
+
+    useEffect(() => {
+    console.log('GpxLoader: Loading route data');
+    try {
+      const waypoints = [
+        { lat: 40.7128, lon: -74.0060 },
+        { lat: 40.7138, lon: -74.0070 },
+      ];
+      const rawStats = { distanceKm: 10, elevationM: 100, name: 'Chill Hills' };
+      const cueSheet = [
+        { instruction: 'Start', distance: 0 },
+        { instruction: 'Turn right', distance: 500 },
+      ];
+
+      console.log('GpxLoader: Setting data', { waypoints, rawStats, cueSheet });
+      setWaypoints(waypoints);
+      setRawStats(rawStats);
+      setCueSheet(cueSheet);
+    } catch (err) {
+      console.error('GpxLoader: Error setting data:', err);
+    }
+    }, [setWaypoints, setRawStats, setCueSheet]);
 
     return null;
 }

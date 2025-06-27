@@ -9,7 +9,6 @@ import GpxLoader from '../components/GpxLoader';
 import StatsCard from '../components/StatsCard';
 import RoutePreferences from '../components/RoutePreferences';
 import CueSheet from '../components/CueSheet';
-import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Header from '../components/ui/Header';
 
@@ -46,88 +45,20 @@ export default function RouteDisplay() {
         // TODO: create route to backend for route generation
     }, []);
 
-    const handleSaveRoute = async () => {
-        if (!user || !user.id) {
-            alert('Please log in to save routes.');
-            return;
-        }
-
-        if (!routeName || !rawStats.distanceKm || !cueSheet.length) {
-            alert('Route name, stats, and cue sheet are required to save the route.');
-        return;
-        }
-        try {
-            const res = await fetch('/api/routes/save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User': JSON.stringify(user),
-            },
-            body: JSON.stringify({
-                routeName,
-                rawStats,
-                cueSheet,
-                preferences, // Optional: include preferences for context
-            }),
-        });
-      
-        const data = await res.json();
-        if (res.ok) {
-            alert('Route saved successfully!');
-        } else {
-            alert(data.error || 'Failed to save route.');
-        }
-        } catch (err) {
-            console.error('Error saving route:', err);
-            alert('An error occurred while saving the route.');
-        }
-    };
-
     return (
-        <div className="bg-base min-h-screen text-gray-800">
-            <div className="w-full">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Left Sidebar - Route Preferences */}
-                    <div className="lg:col-span-3">
-                        <div className="space-y-4">
-                            <RoutePreferences preferences={preferences} setPreferences={setPreferences} />
-                            <Button className="w-full">
-                                Generate Route
-                            </Button>
-                        </div>
-                    </div>
-
-                    {/* Center - Map and Route Name */}
-                    <div className="lg:col-span-6 flex flex-col items-center space-y-4">
-                        <Header className="font-semibold text-center" level={2}>{routeName}</Header>
-                        <div className="w-full h-[400px] lg:h-[500px] xl:h-[600px] rounded-xl shadow-lg overflow-hidden">
-                            <MapContainer className="h-full w-full" center={[39.95, -75.16]} zoom={13}>
-                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                <GpxLoader onStatsReady={setRawStats} onCuesReady={setCueSheet} />
-                            </MapContainer>
-                        </div>
-                    </div>
-
-                    {/* Right Sidebar - Stats and Cue Sheet */}
-                    <div className="lg:col-span-3">
-                        <div className="space-y-4">
-                            <Card>
-                                <StatsCard stats={rawStats} unitSystem={unitSystem} setUnitSystem={setUnitSystem} />
-                            </Card>
-                            <CueSheet cueSheet={cueSheet} />
-                            <Button as="a" href="/chill_hills.gpx" download="chill_hills.gpx" className="w-full">
-                                Export GPX
-                            {/* Le - add save button */}
-                            </Button>
-                            {user && (
-                                <Button onClick={handleSaveRoute} className="w-full bg-green-600 hover:bg-green-700">
-                                    Save Route
-                                    </Button>
-                                    )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    <div className="min-h-screen bg-gray-100 p-4">
+      <Header level={2} className="text-2xl font-bold mb-4">Your Routes</Header>
+      <GpxLoader setWaypoints={setWaypoints} setRawStats={setRawStats} setCueSheet={setCueSheet} />
+      <RoutePreferences />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="col-span-1">
+          <Map waypoints={waypoints} />
+        </Card>
+        <Card className="col-span-1">
+          <StatsCard rawStats={rawStats} />
+          <CueSheet cues={cueSheet} />
+        </Card>
+      </div>
+    </div>
+  );
 }

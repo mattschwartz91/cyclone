@@ -3,10 +3,105 @@
     "id": 1624567890123,
     "userId": "user123",
     "routeName": "Default Route",
-    "waypoints": [],
-    "rawStats": { "distanceKm": 20, "elevationM": 300 },
-    "cueSheet": [{ "instruction": "Turn left", "distance": 5 }],
-    "preferences": { "startingPoint": [39.95, -75.16], "distanceTarget": 20, "elevationTarget": 1000 },
+    "waypoints": [
+      {
+        "lat": 40.7128,
+        "lon": -74.006
+      },
+      {
+        "lat": 40.7138,
+        "lon": -74.007
+      }
+    ],
+    "rawStats": {
+      "distanceKm": 20,
+      "elevationM": 300
+    },
+    "cueSheet": [
+      {
+        "instruction": "Turn left",
+        "distance": 5
+      }
+    ],
+    "preferences": {
+      "startingPoint": [
+        39.95,
+        -75.16
+      ],
+      "distanceTarget": 20,
+      "elevationTarget": 1000
+    },
     "createdAt": "2025-06-24T22:11:00.000Z"
+  },
+  {
+    "id": 1698341234567,
+    "userId": "user123",
+    "routeName": "My Route",
+    "waypoints": [
+      {
+        "lat": 40.7128,
+        "lon": -74.006
+      },
+      {
+        "lat": 40.7138,
+        "lon": -74.007
+      }
+    ],
+    "rawStats": {
+      "distanceKm": 10,
+      "elevationM": 100,
+      "name": "Chill Hills"
+    },
+    "cueSheet": [
+      {
+        "instruction": "Start",
+        "distance": 0
+      },
+      {
+        "instruction": "Turn right",
+        "distance": 500
+      }
+    ],
+    "preferences": null,
+    "createdAt": "2025-06-27T..."
+  },
+  {
+    "id": 1751044720855,
+    "userId": "user123",
+    "routeName": "Test",
+    "waypoints": [
+      {
+        "lat": 40.7128,
+        "lon": -74.006
+      },
+      {
+        "lat": 40.7138,
+        "lon": -74.007
+      }
+    ],
+    "rawStats": {
+      "distanceKm": 10,
+      "elevationM": 100,
+      "name": "Chill Hills"
+    },
+    "cueSheet": [
+      {
+        "instruction": "Start",
+        "distance": 0
+      },
+      {
+        "instruction": "Turn right",
+        "distance": 500
+      }
+    ],
+    "preferences": {
+      "startingPoint": "{\"lat\": 28.054, \"lon\": -82.424}",
+      "endingPoint": "{\"lat\": 28.115, \"lon\": -82.462}",
+      "distanceTarget": "15",
+      "elevationTarget": "1200",
+      "bikeLanes": true,
+      "pointsOfInterest": false
+    },
+    "createdAt": "2025-06-27T17:18:40.855Z"
   }
 ]
