@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import config from '../config';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, Polyline } from 'react-leaflet';
+import L from 'leaflet';
+import { saveAs } from 'file-saver';
 
 // UI & components
 import GpxLoader from '../components/GpxLoader';
@@ -45,6 +47,66 @@ export default function RouteDisplay() {
       .then(setSavedRoutes)
       .catch(err => console.error('Failed to load saved routes:', err));
   }, [user]);
+
+  useEffect(() => {
+    const fetchRouteFromOSRM = async () => {
+      if (
+        !Array.isArray(preferences.startingPoint) ||
+        !Array.isArray(preferences.endingPoint)
+      ) return;
+
+      const [startLon, startLat] = preferences.startingPoint;
+      const [endLon, endLat] = preferences.endingPoint;
+
+      try {
+        const res = await fetch(`http://localhost:5000/route/v1/bicycle/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`);
+        const data = await res.json();
+        if (data.routes?.[0]) {
+          const coords = data.routes[0].geometry.coordinates;
+          const wp = coords.map(([lon, lat]) => ({ lat, lon }));
+          setWaypoints(wp);
+        }
+      } catch (err) {
+        console.error('OSRM routing error:', err);
+      }
+    };
+
+    fetchRouteFromOSRM();
+  }, [preferences.startingPoint, preferences.endingPoint]);
+
+  function ClickHandler({ setPreferences }) {
+    useMapEvents({
+      click(e) {
+        setPreferences(prev => {
+          const latlng = [e.latlng.lng, e.latlng.lat]; // [lon, lat]
+          if (!prev.startingPoint) {
+            return { ...prev, startingPoint: latlng };
+          } else if (!prev.endingPoint) {
+            return { ...prev, endingPoint: latlng };
+          } else {
+            return { ...prev, startingPoint: latlng, endingPoint: null };
+          }
+        });
+      }
+    });
+    return null;
+  }
+
+  const exportToGpx = () => {
+    if (!Array.isArray(waypoints) || waypoints.length === 0) return;
+
+    const gpxHeader = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Cyclone App" xmlns="http://www.topografix.com/GPX/1/1">
+<trk><name>${routeName}</name><trkseg>`;
+
+    const gpxBody = waypoints.map(wp => `<trkpt lat="${wp.lat}" lon="${wp.lon}"></trkpt>`).join('\n');
+
+    const gpxFooter = `</trkseg></trk></gpx>`;
+    const gpxContent = `${gpxHeader}\n${gpxBody}\n${gpxFooter}`;
+
+    const blob = new Blob([gpxContent], { type: 'application/gpx+xml;charset=utf-8' });
+    saveAs(blob, `${routeName || 'route'}.gpx`);
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -130,11 +192,11 @@ export default function RouteDisplay() {
       setRawStats({ distanceKm: data.distance / 1000, elevationM: 0 });
       setCueSheet([]);
       setSuccess('Route planned successfully!');
-      } catch (err) {
+    } catch (err) {
       console.error('Error planning route:', err);
       setError(err.message);
-      }
-    };
+    }
+  };
 
   return (
     <div className="bg-base min-h-screen text-gray-800 p-4">
@@ -146,11 +208,10 @@ export default function RouteDisplay() {
             <form onSubmit={handleSave}>
               <Button
                 type="submit"
-                className={`w-full ${
-                    routeReady
-                    ? 'bg-black text-white hover:bg-gray-900'
-                    : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                }`}
+                className={`w-full ${routeReady
+                  ? 'bg-black text-white hover:bg-gray-900'
+                  : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                  }`}
                 disabled={!routeReady}
               >
                 Save Route
@@ -172,6 +233,17 @@ export default function RouteDisplay() {
             <div className="w-full h-[400px] lg:h-[500px] xl:h-[600px] rounded-xl shadow-lg overflow-hidden">
               <MapContainer className="h-full w-full" center={[39.95, -75.16]} zoom={13}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <ClickHandler setPreferences={setPreferences} />
+                {preferences.startingPoint && (
+                  <Marker position={[preferences.startingPoint[1], preferences.startingPoint[0]]} />
+                )}
+                {preferences.endingPoint && (
+                  <Marker position={[preferences.endingPoint[1], preferences.endingPoint[0]]} />
+                )}
+
+                {waypoints.length > 1 && (
+                  <Polyline positions={waypoints.map(wp => [wp.lat, wp.lon])} color="blue" />
+                )}
                 <GpxLoader
                   waypoints={waypoints}
                   setWaypoints={setWaypoints}
@@ -187,7 +259,7 @@ export default function RouteDisplay() {
               <StatsCard stats={rawStats} unitSystem={unitSystem} setUnitSystem={setUnitSystem} />
             </Card>
             <CueSheet cueSheet={cueSheet} />
-            <Button as="a" href="/chill_hills.gpx" download="chill_hills.gpx" className="w-full">
+            <Button onClick={exportToGpx} className="w-full">
               Export GPX
             </Button>
           </div>
