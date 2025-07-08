@@ -3,85 +3,78 @@ import Card from './ui/Card';
 import Header from './ui/Header';
 import Input from './ui/Input';
 import Button from "./ui/Button.jsx";
-import React, { useState, useEffect } from "react";
+import React from "react";
 
 export default function RoutePreferences({ preferences, setPreferences }) {
-
-    const [startAddress, setStartAddress] = useState('');
-    const [endAddress, setEndAddress] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [geocodeError, setGeocodeError] = useState('');
-
-    const geocode = async (query) => {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        if (data && data.length > 0) {
-            return [parseFloat(data[0].lon), parseFloat(data[0].lat)]; // [lon, lat]
-        } else {
-            throw new Error('Address not found');
-        }
-    };
-
-    const handleGeocode = async () => {
-        setLoading(true);
-        setGeocodeError('');
-
-        try {
-            const [startCoords, endCoords] = await Promise.all([
-                geocode(startAddress),
-                geocode(endAddress),
-            ]);
-
-            setPreferences(prev => ({
-                ...prev,
-                startingPoint: startCoords,
-                endingPoint: endCoords,
-            }));
-        } catch (err) {
-            console.error(err);
-            setGeocodeError('Failed to geocode one or both addresses.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleChange = (field) => (e) => {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         setPreferences((prev) => ({ ...prev, [field]: value }));
     };
 
     return (
-        <div className="space-y-4">
-            <div>
-                <label className="block font-semibold mb-1">Start Address</label>
-                <input
-                    type="text"
-                    value={startAddress}
-                    onChange={(e) => setStartAddress(e.target.value)}
-                    className="border p-2 rounded w-full"
-                    placeholder="e.g. 123 Main St, Philadelphia"
-                />
+        <Card>
+            <Header level={2}>Route Preferences</Header>
+            <div className="space-y-2">
+                <label className="block">
+                    {/* TODO: integrate google autocomplete - https://www.npmjs.com/package/react-google-autocomplete?activeTab=readme */}
+                    <input type="text" placeholder="Start Location" onChange={handleChange('startingPoint')} className="w-full px-3 py-2"  />
+                </label>
+                <label className="block">
+                    {/* TODO: integrate google autocomplete */}
+                    <input type="text" placeholder="End Location" onChange={handleChange('endingPoint')} className="w-full px-3 py-2"  />
+                </label>
+
             </div>
-            <div>
-                <label className="block font-semibold mb-1">End Address</label>
-                <input
-                    type="text"
-                    value={endAddress}
-                    onChange={(e) => setEndAddress(e.target.value)}
-                    className="border p-2 rounded w-full"
-                    placeholder="e.g. 456 Market St, Philadelphia"
-                />
+            <div className="space-y-1">
+                {/* TODO1: make the units consistent */}
+                {/* TODO2: add option for numerical input */}
+                <label className="font-medium block">Distance: {preferences.distanceTarget} mi</label>
+                <div className="flex items-center gap-4">
+                    <input
+                        type="range"
+                        min="0"
+                        max="125"
+                        step="5"
+                        value={preferences.distanceTarget || 0}
+                        onChange={handleChange('distanceTarget')}
+                        className="w-full"
+                    />
+                </div>
+            </div>
+            <div className="space-y-1">
+                {/* TODO1: make the units consistent */}
+                {/* TODO2: add option for numerical input */}
+                <label className="font-medium block">Elevation: {preferences.elevationTarget} ft</label>
+                <div className="flex items-center gap-4">
+                    <input
+                        type="range"
+                        min="0"
+                        max="10000"
+                        step="100"
+                        value={preferences.elevationTarget || 0}
+                        onChange={handleChange('elevationTarget')}
+                        className="w-full"
+                    />
+                </div>
             </div>
 
-            <button
-                onClick={handleGeocode}
-                disabled={loading || !startAddress || !endAddress}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full"
-            >
-                {loading ? 'Geocoding...' : 'Set Start & End Points'}
-            </button>
+            <div className="space-y-2">
+                {/* TODO: Make this a popout of some kind */}
+                <h2 className="font-medium block py-3">Additional Options:</h2>
+                <label className="block">
+                    <input type="checkbox" className="mr-2" checked={preferences.bikeLanes} onChange={handleChange('bikeLanes')} />
+                    Prioritize bike lanes
+                </label>
+                <label className="block">
+                    <input type="checkbox" className="mr-2" checked={preferences.pointsOfInterest} onChange={handleChange('pointsOfInterest')} />
+                    Points of interest
+                </label>
 
-            {geocodeError && <p className="text-red-500">{geocodeError}</p>}
-        </div>
+            </div>
+
+
+
+
+        </Card>
     );
 }
