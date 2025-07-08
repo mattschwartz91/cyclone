@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const router = express.Router();
 const dataPath = path.join(__dirname, '../data/routes.json');
+const axios = require('axios');
 
 const ensureDataFile = async () => {
   const dir = path.dirname(dataPath);
@@ -107,6 +108,31 @@ router.get('/api/plan', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Error fetching routes:', err);
     res.status(500).json({ error: 'Failed to fetch routes' });
+  }
+});
+
+router.post('/api/plan-route', requireAuth, async (req, res) => {
+  const { start, end } = req.body;
+  if (!Array.isArray(start) || !Array.isArray(end)) {
+    return res.status(400).json({ error: 'Invalid start or end coordinates' });
+  }
+
+  const coordinates = `${start.join(',')};${end.join(',')}`;
+  const url = `http://localhost:5000/route/v1/bicycle/${coordinates}?overview=full&geometries=geojson`;
+
+  try {
+    const response = await axios.get(url);
+    const route = response.data.routes?.[0];
+    if (!route) return res.status(404).json({ error: 'No route found' });
+
+    res.json({
+      geometry: route.geometry,
+      distance: route.distance,
+      duration: route.duration
+    });
+  } catch (err) {
+    console.error('OSRM route error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch route from OSRM' });
   }
 });
 

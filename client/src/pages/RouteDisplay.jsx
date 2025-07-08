@@ -46,6 +46,13 @@ export default function RouteDisplay() {
       .catch(err => console.error('Failed to load saved routes:', err));
   }, [user]);
 
+  const geocodeAddress = async (address) => {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+    const data = await res.json();
+    if (!data || !data[0]) throw new Error(`Could not geocode: ${address}`);
+    return [parseFloat(data[0].lon), parseFloat(data[0].lat)]; // [lon, lat]
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setError('');
@@ -61,12 +68,17 @@ export default function RouteDisplay() {
       return;
     }
 
+    const timestamp = Date.now();
+
     const routeData = {
+      id: timestamp,
+      userId: user.id,
       routeName: routeName.trim(),
       waypoints,
       rawStats,
       cueSheet,
       preferences,
+      createdAt: new Date(timestamp).toISOString(),
     };
 
     try {
@@ -108,6 +120,9 @@ export default function RouteDisplay() {
     }
 
     try {
+      const startCoord = await geocodeAddress(preferences.startingPoint);
+      const endCoord = await geocodeAddress(preferences.endingPoint);
+
       const res = await fetch('/api/plan-route', {
         method: 'POST',
         headers: {
@@ -115,8 +130,8 @@ export default function RouteDisplay() {
           'X-User': JSON.stringify(user)
         },
         body: JSON.stringify({
-          start: preferences.startingPoint,
-          end: preferences.endingPoint
+          start: startCoord,
+          end: endCoord
         })
       });
       const data = await res.json();
@@ -130,11 +145,11 @@ export default function RouteDisplay() {
       setRawStats({ distanceKm: data.distance / 1000, elevationM: 0 });
       setCueSheet([]);
       setSuccess('Route planned successfully!');
-      } catch (err) {
+    } catch (err) {
       console.error('Error planning route:', err);
       setError(err.message);
-      }
-    };
+    }
+  };
 
   return (
     <div className="bg-base min-h-screen text-gray-800 p-4">
@@ -146,11 +161,10 @@ export default function RouteDisplay() {
             <form onSubmit={handleSave}>
               <Button
                 type="submit"
-                className={`w-full ${
-                    routeReady
+                className={`w-full ${routeReady
                     ? 'bg-black text-white hover:bg-gray-900'
                     : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                }`}
+                  }`}
                 disabled={!routeReady}
               >
                 Save Route
