@@ -6,6 +6,28 @@ import 'leaflet-gpx';
 export default function GpxLoader({ waypoints = [], setWaypoints, onStatsReady, onCuesReady }) {
   const map = useMap();
 
+  function calculateDistance(latlngs) {
+    let total = 0;
+    for (let i = 1; i < latlngs.length; i++) {
+      const [lat1, lon1] = latlngs[i - 1];
+      const [lat2, lon2] = latlngs[i];
+      total += getDistance(lat1, lon1, lat2, lon2);
+    }
+    return total / 1000; // return in km
+  }
+
+  function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // meters
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
   useEffect(() => {
     if (waypoints && waypoints.length > 0) {
       const latlngs = waypoints.map(wp => [wp.lat, wp.lon]);
@@ -22,15 +44,12 @@ export default function GpxLoader({ waypoints = [], setWaypoints, onStatsReady, 
       }
 
       if (onStatsReady) {
-        onStatsReady({
-          distanceKm: e.target.get_distance() / 1000,
-          elevationM: e.target.get_elevation_gain(),
-        });
+        const distanceKm = calculateDistance(latlngs);
+        onStatsReady({ distanceKm, elevationM: 0 });
       }
 
       if (onCuesReady) {
-        e.target.get_segments().flatMap((seg) =>
-        seg.points.map((pt) => pt.name).filter(Boolean))
+        onCuesReady([]);
       }
 
       return () => {

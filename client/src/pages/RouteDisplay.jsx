@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import config from '../config';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet'; // Added Polyline, Marker, Popup
+import 'leaflet/dist/leaflet.css';
 
 // UI & components
 import GpxLoader from '../components/GpxLoader';
@@ -20,6 +21,7 @@ export default function RouteDisplay() {
   const [savedRoutes, setSavedRoutes] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedRouteId, setSelectedRouteId] = useState('');
   const [preferences, setPreferences] = useState({
     startingPoint: null,
     endingPoint: null,
@@ -34,23 +36,27 @@ export default function RouteDisplay() {
 
   useEffect(() => {
     if (!user || !user.id) return;
-    fetch('/api/plan', {
-      headers: { 'X-User': JSON.stringify(user), 'Accept': 'application/json' }
-    })
-      .then(async res => {
-        if (!res.ok) throw new Error(`Error: ${res.statusText}`);
-        const text = await res.text();
-        return text ? JSON.parse(text) : [];
-      })
-      .then(setSavedRoutes)
-      .catch(err => console.error('Failed to load saved routes:', err));
+    const loadSavedRoutes = async () => {
+      try {
+        const res = await fetch('/api/routes'); // ✅ Fetch from backend
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const routes = await res.json();
+        const userRoutes = routes.filter(r => r.userId === user.id);
+        setSavedRoutes(userRoutes);
+      } catch (err) {
+        console.error('Failed to load saved routes from backend:', err);
+        setError('Failed to load saved routes.');
+      }
+    };
+
+    loadSavedRoutes();
   }, [user]);
 
   const geocodeAddress = async (address) => {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
     const data = await res.json();
     if (!data || !data[0]) throw new Error(`Could not geocode: ${address}`);
-    return [parseFloat(data[0].lon), parseFloat(data[0].lat)]; // [lon, lat]
+    return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
   };
 
   const handleSave = async (e) => {
@@ -94,7 +100,7 @@ export default function RouteDisplay() {
       const data = await res.json();
       if (res.ok) {
         setSuccess('Route saved successfully!');
-        setSavedRoutes(prev => [...prev, { ...routeData, id: Date.now(), createdAt: new Date().toISOString() }]);
+        setSavedRoutes(prev => [...prev, routeData]);
         setRouteName("Default Route");
       } else {
         setError(data.error || 'Failed to save route.');
@@ -151,25 +157,70 @@ export default function RouteDisplay() {
     }
   };
 
+  const handleLoadRoute = (routeId) => {
+    const selectedRoute = savedRoutes.find(route => route.id.toString() === routeId);
+    if (selectedRoute) {
+      if (selectedRoute.userId !== user.id) {
+        setError('You do not have permission to load this route.');
+        return;
+      }
+      setRouteName(selectedRoute.routeName);
+      setWaypoints(selectedRoute.waypoints);
+      setRawStats(selectedRoute.rawStats || { distanceKm: null, elevationM: null });
+      setCueSheet(selectedRoute.cueSheet || []);
+      setPreferences(selectedRoute.preferences || preferences);
+      setSelectedRouteId(routeId);
+      setSuccess('Route loaded successfully!');
+    } else {
+      setError('Route not found.');
+    }
+  };
+
   return (
     <div className="bg-base min-h-screen text-gray-800 p-4">
       <div className="max-w-screen-xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-3 space-y-4">
             <RoutePreferences preferences={preferences} setPreferences={setPreferences} />
-            <Button className="w-full">Generate Route</Button>
+            <Button className="w-full" onClick={handlePlanRoute}>Generate Route</Button>
             <form onSubmit={handleSave}>
               <Button
                 type="submit"
                 className={`w-full ${routeReady
-                    ? 'bg-black text-white hover:bg-gray-900'
-                    : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                  ? 'bg-black text-white hover:bg-gray-900'
+                  : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                   }`}
                 disabled={!routeReady}
               >
                 Save Route
               </Button>
             </form>
+            {user?.id ? (
+              savedRoutes.length > 0 ? (
+                <div>
+                  <label htmlFor="savedRoutes" className="block text-sm font-medium text-gray-700">
+                    Load Your Saved Routes
+                  </label>
+                  <select
+                    id="savedRoutes"
+                    value={selectedRouteId}
+                    onChange={(e) => handleLoadRoute(e.target.value)}
+                    className="mt-1 block w-full p-2 border rounded"
+                  >
+                    <option value="">Select a route</option>
+                    {savedRoutes.map((route) => (
+                      <option key={route.id} value={route.id}>
+                        {route.routeName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <p className="text-gray-500">No saved routes found for your account.</p>
+              )
+            ) : (
+              <p className="text-gray-500">Please log in to view your saved routes.</p>
+            )}
             {error && <p className="text-red-500">{error}</p>}
             {success && <p className="text-green-500">{success}</p>}
           </div>
@@ -192,6 +243,24 @@ export default function RouteDisplay() {
                   onStatsReady={setRawStats}
                   onSCuesReady={setCueSheet}
                 />
+
+                {/* begin edit: render saved route as polyline */}
+                {waypoints.length > 1 && (
+                  <>
+                    <Polyline
+                      positions={waypoints.map(w => [w.lat, w.lon])}
+                      color="blue"
+                      weight={4}
+                      opacity={0.7}
+                    />
+                    {waypoints.map((w, idx) => (
+                      <Marker key={idx} position={[w.lat, w.lon]}>
+                        <Popup>Waypoint {idx + 1}</Popup>
+                      </Marker>
+                    ))}
+                  </>
+                )}
+                {/* end edit */}
               </MapContainer>
             </div>
           </div>
