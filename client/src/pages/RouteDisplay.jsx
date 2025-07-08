@@ -93,6 +93,49 @@ export default function RouteDisplay() {
     }
   };
 
+  const handlePlanRoute = async () => {
+    setError('');
+    setSuccess('');
+
+    if (
+      !preferences.startingPoint ||
+      !preferences.endingPoint ||
+      !Array.isArray(preferences.startingPoint) ||
+      !Array.isArray(preferences.endingPoint)
+    ) {
+      setError('Please select valid starting and ending points.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/plan-route', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User': JSON.stringify(user)
+        },
+        body: JSON.stringify({
+          start: preferences.startingPoint,
+          end: preferences.endingPoint
+        })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Route planning failed');
+      }
+
+      const coords = data.geometry.coordinates.map(([lon, lat]) => ({ lat, lon }));
+      setWaypoints(coords);
+      setRawStats({ distanceKm: data.distance / 1000, elevationM: 0 });
+      setCueSheet([]);
+      setSuccess('Route planned successfully!');
+      } catch (err) {
+      console.error('Error planning route:', err);
+      setError(err.message);
+      }
+    };
+
   return (
     <div className="bg-base min-h-screen text-gray-800 p-4">
       <div className="max-w-screen-xl mx-auto">
