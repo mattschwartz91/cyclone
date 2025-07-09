@@ -29,7 +29,7 @@ export default function Login() {
       const data = await res.json();
       if (res.ok) {
         localStorage.setItem('user', JSON.stringify(data.user));
-        navigate('/plan');
+        navigate('/routes');
       } else {
         setError(data.error || 'Login failed. Please try again.');
       }
