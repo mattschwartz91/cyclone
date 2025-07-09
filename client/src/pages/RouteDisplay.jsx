@@ -176,6 +176,65 @@ export default function RouteDisplay() {
     }
   };
 
+  const handleTestSaveStraightRoute = async () => {
+    setError('');
+    setSuccess('');
+
+    if (!user || !user.id) {
+      setError('Please log in to save routes.');
+      return;
+    }
+
+    const from = preferences.startingPoint || "Philadelphia, PA";
+    const to = preferences.endingPoint || "New York, NY";
+
+    try {
+      const startCoord = await geocodeAddress(from);
+      const endCoord = await geocodeAddress(to);
+
+      const route = {
+        id: Date.now(),
+        userId: user.id,
+        routeName: `Straight line: ${startCoord} to ${endCoord}`,
+        waypoints: [
+          { lat: startCoord[1], lon: startCoord[0] },
+          { lat: endCoord[1], lon: endCoord[0] },
+        ],
+        rawStats: {
+          distanceKm: Math.sqrt(
+            Math.pow(startCoord[0] - endCoord[0], 2) +
+            Math.pow(startCoord[1] - endCoord[1], 2)
+          ) * 111,
+          elevationM: 0,
+        },
+        cueSheet: [],
+        preferences,
+        createdAt: new Date().toISOString(),
+      };
+
+      const res = await fetch('/api/plan/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User': JSON.stringify(user),
+        },
+        body: JSON.stringify(route),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuccess('Test route saved successfully!');
+        setSavedRoutes(prev => [...prev, route]);
+      } else {
+        setError(data.error || 'Failed to save test route.');
+      }
+    } catch (err) {
+      console.error('Failed to save test route:', err);
+      setError('Could not create or save test route.');
+    }
+  };
+
   return (
     <div className="bg-base min-h-screen text-gray-800 p-4">
       <div className="max-w-screen-xl mx-auto">
@@ -193,6 +252,10 @@ export default function RouteDisplay() {
                 disabled={!routeReady}
               >
                 Save Route
+              </Button>
+              {/* For testing only */}
+              <Button className="w-full bg-blue-200" onClick={handleTestSaveStraightRoute}>
+                Save Test Straight Route
               </Button>
             </form>
             {user?.id ? (
@@ -243,8 +306,6 @@ export default function RouteDisplay() {
                   onStatsReady={setRawStats}
                   onSCuesReady={setCueSheet}
                 />
-
-                {/* begin edit: render saved route as polyline */}
                 {waypoints.length > 1 && (
                   <>
                     <Polyline
@@ -260,7 +321,6 @@ export default function RouteDisplay() {
                     ))}
                   </>
                 )}
-                {/* end edit */}
               </MapContainer>
             </div>
           </div>
