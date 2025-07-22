@@ -36,5 +36,59 @@
       "elevationTarget": 1000
     },
     "createdAt": "2025-06-24T22:11:00.000Z"
+  },
+  {
+    "id": 1753210774520,
+    "userId": "user123",
+    "routeName": "Test Route",
+    "waypoints": [
+      {
+        "lat": 39.9494398,
+        "lon": -75.1738111
+      },
+      {
+        "lat": 39.9462995,
+        "lon": -75.1717868
+      }
+    ],
+    "rawStats": {
+      "distanceKm": 0.41471944986876463,
+      "elevationM": 0
+    },
+    "cueSheet": [],
+    "preferences": {
+      "startingPoint": "1955 Locust St, Philadelphia, PA 19103",
+      "distanceTarget": 20,
+      "elevationTarget": 1000,
+      "endingPoint": "1804 Pine St, Philadelphia, PA 19103"
+    },
+    "createdAt": "2025-07-22T18:59:34.520Z"
+  },
+  {
+    "id": 1753210851312,
+    "userId": "user",
+    "routeName": "Example Route",
+    "waypoints": [
+      {
+        "lat": 39.9774961,
+        "lon": -75.1584795
+      },
+      {
+        "lat": 39.9771226,
+        "lon": -75.1683432
+      }
+    ],
+    "rawStats": {
+      "distanceKm": 1.0956553549999122,
+      "elevationM": 0
+    },
+    "cueSheet": [],
+    "preferences": {
+      "startingPoint": "1600 N Broad St, Philadelphia, PA 19121",
+      "distanceTarget": 20,
+      "elevationTarget": 1000,
+      "endingPoint": "3060 W Jefferson St, Philadelphia, PA 19121"
+    },
+    "createdAt": "2025-07-22T19:00:51.312Z"
   }
 ]

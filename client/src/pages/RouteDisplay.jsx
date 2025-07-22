@@ -12,6 +12,42 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Header from '../components/ui/Header';
 
+function SavedRoutesModal({ routes, onLoad, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+        <h2 className="text-2xl font-semibold text-center mb-4 text-gray-800">Saved Routes</h2>
+
+        {routes.length > 0 ? (
+          <ul className="divide-y divide-gray-300">
+            {routes.map(route => (
+              <li
+                key={route.id}
+                className="py-3 px-4 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  onLoad(route.id);
+                  onClose();
+                }}
+              >
+                {route.routeName}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-center text-gray-600">No saved routes.</p>
+        )}
+
+        <button
+          className="mt-4 w-full py-2 bg-gray-300 text-black rounded hover:bg-gray-400"
+          onClick={onClose}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function RouteDisplay() {
   const [cueSheet, setCueSheet] = useState([]);
   const [unitSystem, setUnitSystem] = useState("imperial");
@@ -22,6 +58,7 @@ export default function RouteDisplay() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedRouteId, setSelectedRouteId] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [preferences, setPreferences] = useState({
     startingPoint: null,
     endingPoint: null,
@@ -158,7 +195,7 @@ export default function RouteDisplay() {
   };
 
   const handleLoadRoute = (routeId) => {
-    const selectedRoute = savedRoutes.find(route => route.id.toString() === routeId);
+    const selectedRoute = savedRoutes.find(route => String(route.id) === String(routeId));
     if (selectedRoute) {
       if (selectedRoute.userId !== user.id) {
         setError('You do not have permission to load this route.');
@@ -191,11 +228,13 @@ export default function RouteDisplay() {
     try {
       const startCoord = await geocodeAddress(from);
       const endCoord = await geocodeAddress(to);
+      const defaultName = `Straight line: ${startCoord} to ${endCoord}`;
+      const nameToSave = routeName.trim() !== '' ? routeName : defaultName;
 
       const route = {
         id: Date.now(),
         userId: user.id,
-        routeName: `Straight line: ${startCoord} to ${endCoord}`,
+        routeName: nameToSave,
         waypoints: [
           { lat: startCoord[1], lon: startCoord[0] },
           { lat: endCoord[1], lon: endCoord[0] },
@@ -236,7 +275,7 @@ export default function RouteDisplay() {
   };
 
   return (
-    <div className="bg-base min-h-screen text-gray-800 p-4">
+    <div className="bg-base min-h-screen text-gray-800 p-4 relative z-0">
       <div className="max-w-screen-xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-3 space-y-4">
@@ -261,22 +300,9 @@ export default function RouteDisplay() {
             {user?.id ? (
               savedRoutes.length > 0 ? (
                 <div>
-                  <label htmlFor="savedRoutes" className="block text-sm font-medium text-gray-700">
-                    Load Your Saved Routes
-                  </label>
-                  <select
-                    id="savedRoutes"
-                    value={selectedRouteId}
-                    onChange={(e) => handleLoadRoute(e.target.value)}
-                    className="mt-1 block w-full p-2 border rounded"
-                  >
-                    <option value="">Select a route</option>
-                    {savedRoutes.map((route) => (
-                      <option key={route.id} value={route.id}>
-                        {route.routeName}
-                      </option>
-                    ))}
-                  </select>
+                  <Button className="w-full" onClick={() => setIsModalOpen(true)}>
+                    Load Saved Routes
+                  </Button>
                 </div>
               ) : (
                 <p className="text-gray-500">No saved routes found for your account.</p>
@@ -336,6 +362,13 @@ export default function RouteDisplay() {
           </div>
         </div>
       </div>
+      {isModalOpen && (
+        <SavedRoutesModal
+        routes={savedRoutes}
+        onLoad={handleLoadRoute}
+        onClose={() => setIsModalOpen(false)}
+      />
+    )}
     </div>
   );
 }

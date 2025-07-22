@@ -70,7 +70,7 @@ const MapComponent = () => {
       {error && <p className="text-red-500">{error}</p>}
 
       {location && (
-        <MapContainer className= "mt-4" center={location} zoom={13} style={{height:"400px", width: "800px"}}>
+        <MapContainer className= "mt-4 relative z-0" center={location} zoom={13} style={{height:"400px", width: "800px"}}>
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
