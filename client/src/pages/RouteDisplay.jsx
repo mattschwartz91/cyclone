@@ -335,22 +335,6 @@ export default function RouteDisplay() {
             </Button>
           </div>
         </div>
-        {savedRoutes.length > 0 && (
-          <div className="mt-10">
-            <h3 className="text-xl font-semibold mb-2">Your Saved Routes</h3>
-            <ul className="space-y-2">
-              {savedRoutes.map((r, idx) => (
-                <li key={idx} className="border p-3 rounded">
-                  <strong>{r.routeName}</strong>
-                  <br />
-                  Waypoints: {Array.isArray(r.waypoints)
-                    ? r.waypoints.map(w => `(${w.lat}, ${w.lon})`).join(', ')
-                    : 'No waypoints'}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
     </div>
   );
