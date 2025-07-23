@@ -12,7 +12,7 @@ const session = require(`express-session`);
 //TODO: move hosting over to raspberry pi
 
 
-// helper functions
+// helper functionsF
 function validPassword(password) {
     if (password === "") {
         return false;
@@ -34,7 +34,7 @@ app.use(express.json());
 
 // Enable CORS for all routes
 app.use(cors({
-    origin: 'https://cyclone-lj58.onrender.com/',  // frontend origin
+    origin: 'https://cyclone-lj58.onrender.com',  // frontend origin
     credentials: true                // allow cookies to be sent
 }));
 
