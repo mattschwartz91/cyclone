@@ -186,9 +186,9 @@ const fs = require('fs');
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // IMPORTANT: This should be the LAST route
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-});
+// app.get('*', (req, res) => {
+//     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+// });
 
 
 // verifies backend has started
