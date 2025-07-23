@@ -34,7 +34,7 @@ app.use(express.json());
 
 // Enable CORS for all routes
 app.use(cors({
-    origin: 'http://localhost:5173',  // frontend origin
+    origin: 'http://192.168.1.24',  // frontend origin
     credentials: true                // allow cookies to be sent
 }));
 

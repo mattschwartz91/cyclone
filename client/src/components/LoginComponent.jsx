@@ -11,7 +11,7 @@ const LoginComponent = () => {
 
         // update login button based on login state
         useEffect(() => {
-            fetch('http://localhost:3000/api/status', { credentials: 'include' })
+            fetch('http://192.168.1.24:3000/api/status', { credentials: 'include' })
                 .then(res => res.json())
                 .then(data => {
                 setLoggedin(data.loggedin);
@@ -38,7 +38,7 @@ const LoginComponent = () => {
                 // login
                 try {
                     // send a POST request to server
-                    const res = await fetch('http://localhost:3000/api/login', {
+                    const res = await fetch('http://192.168.1.24:3000/api/login', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({username, password}),
@@ -62,7 +62,7 @@ const LoginComponent = () => {
                 // logout
                 try {
                     // send a POST request to server
-                    const res = await fetch('http://localhost:3000/api/logout', {
+                    const res = await fetch('http://192.168.1.24:3000/api/logout', {
                         method: 'POST',
                         credentials: 'include'
                     });
@@ -85,7 +85,7 @@ const LoginComponent = () => {
                 // register
                 try {
                     // send a POST request to server
-                    const res = await fetch('http://localhost:3000/api/register', {
+                    const res = await fetch('http://192.168.1.24:3000/api/register', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({username, password}),
