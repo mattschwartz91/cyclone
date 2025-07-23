@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import HomePage from './pages/HomePage.jsx'
 import RouteDisplay from './pages/RouteDisplay';
 import Login from './pages/Login.jsx';
-import BackendTest from './components/BackendTest';
 
 // TODO: Improve scaling on the nav bar
 // TODO: add logo to navbar
