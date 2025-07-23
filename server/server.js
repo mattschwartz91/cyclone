@@ -178,22 +178,17 @@ app.post('/api/logout', (req, res) => {
 });
 
 
-// // start front end up with this
-// const path = require('path');
-// const fs = require('fs');
+// start front end up with this
+const path = require('path');
+const fs = require('fs');
 
-// // Serve frontend static files
-// app.use(express.static(path.resolve(__dirname, '../client/dist')));
+// Static files and SPA handling
+app.use(express.static(path.join(__dirname, '../client/dist')));
 
-// // Handle all remaining routes with React app
-// app.get('*', (req, res) => {
-//   const indexPath = path.resolve(__dirname, '../client/dist/index.html');
-//   if (fs.existsSync(indexPath)) {
-//     res.sendFile(indexPath);
-//   } else {
-//     res.status(404).send('Frontend not built.');
-//   }
-// });
+// IMPORTANT: This should be the LAST route
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
 
 
 // verifies backend has started
