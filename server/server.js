@@ -34,7 +34,7 @@ app.use(express.json());
 
 // Enable CORS for all routes
 app.use(cors({
-    origin: 'http://192.168.1.24',  // frontend origin
+    origin: 'https://cyclone-lj58.onrender.com/',  // frontend origin
     credentials: true                // allow cookies to be sent
 }));
 
@@ -176,6 +176,25 @@ app.post('/api/logout', (req, res) => {
   console.log("Logged out!");
   return res.json({ message: "Logged out successfully" });
 });
+
+
+// start front end up with this
+const path = require('path');
+const fs = require('fs');
+
+// Serve frontend static files
+app.use(express.static(path.resolve(__dirname, '../client/dist')));
+
+// Handle all remaining routes with React app
+app.get('*', (req, res) => {
+  const indexPath = path.resolve(__dirname, '../client/dist/index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Frontend not built.');
+  }
+});
+
 
 // verifies backend has started
 app.listen(port, () => {
