@@ -182,13 +182,13 @@ app.post('/api/logout', (req, res) => {
 const path = require('path');
 const fs = require('fs');
 
-// Static files and SPA handling
+// Serve static files from React build
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
-// IMPORTANT: This should be the LAST route
-// app.get('*', (req, res) => {
-//     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-// });
+// Middleware to serve React app for frontend routes
+app.get(/^\/(?!api\/).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
 
 
 // verifies backend has started
