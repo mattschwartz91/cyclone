@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const app = express();
 const PORT = 3000;
+const profilesPath = path.join(__dirname, 'data', 'profiles.json');
 
 app.use(cors());
 app.use(express.json());
@@ -22,8 +23,30 @@ app.use((req, res, next) => {
   next();
 });
 
+const readProfiles = () => {
+  const raw = fs.readFileSync(profilesPath);
+  return JSON.parse(raw);
+};
+
+const writeProfiles = (profiles) => {
+  fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
+};
+
 app.get('/', (req, res) => {
   res.json({ message: 'Cyclone API server is running. Access the frontend at http://localhost:5173.' });
+});
+
+app.put('/api/user/profile', (req, res) => {
+  const { id, name, address } = req.body;
+  if (!id) return res.status(400).json({ error: 'Missing user ID' });
+
+  const profiles = readProfiles();
+  const index = profiles.findIndex((u) => u.id === id);
+  if (index === -1) return res.status(404).json({ error: 'User not found' });
+
+  profiles[index] = { ...profiles[index], name, address };
+  writeProfiles(profiles);
+  res.json(profiles[index]);
 });
 
 app.get('/api/routes', (req, res) => {
@@ -44,6 +67,8 @@ app.get('/api/routes', (req, res) => {
 
 // Routes
 app.use(routeApi);
+const routes = require('./routes/routes');
+app.use(routes);
 
 // Start server
 app.listen(PORT, () => {

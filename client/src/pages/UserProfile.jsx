@@ -8,12 +8,25 @@ export default function UserProfile() {
   const [stats, setStats] = useState({ distanceKm: 0, elevationM: 0 });
 
   useEffect(() => {
-    const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-    setUser(localUser);
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser?.id) {
+      navigate('/login');
+      return;
+    }
+
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`/api/user/profile?userId=${storedUser.id}`);
+        const profileData = await res.json();
+        if (res.ok) setUser(profileData);
+      } catch (err) {
+        console.error('Failed to fetch user profile:', err);
+      }
+    };
 
     const fetchStats = async () => {
       try {
-        const res = await fetch(`/api/user/stats?userId=${localUser.id}`);
+        const res = await fetch(`/api/user/stats?userId=${storedUser.id}`);
         const data = await res.json();
         if (res.ok) {
           setStats(data);
@@ -23,18 +36,19 @@ export default function UserProfile() {
       }
     };
 
-    if (localUser?.id) {
+    if (storedUser?.id) {
+      fetchProfile();
       fetchStats();
     }
   }, []);
 
   const navigate = useNavigate();
-useEffect(() => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  if (!user) {
-    navigate('/login');
-  }
-}, []);
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      navigate('/login');
+    }
+  }, []);
 
   if (!user) {
     return <div className="p-4 text-center text-gray-600">Please log in to view your profile.</div>;

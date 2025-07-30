@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const router = express.Router();
 const dataPath = path.join(__dirname, '../data/routes.json');
+const profilesPath = path.join(__dirname, '../data/profiles.json');
 const axios = require('axios');
 
 const ensureDataFile = async () => {
@@ -19,6 +20,15 @@ const ensureDataFile = async () => {
     console.error('Error ensuring data file:', err);
     throw new Error('Failed to initialize routes file');
   }
+};
+
+const readProfiles = async () => {
+  const raw = await fs.readFile(profilesPath, 'utf8');
+  return JSON.parse(raw);
+};
+
+const writeProfiles = async (profiles) => {
+  await fs.writeFile(profilesPath, JSON.stringify(profiles, null, 2));
 };
 
 function requireAuth(req, res, next) {
@@ -38,7 +48,7 @@ router.post('/api/login', async (req, res) => {
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
-  const testUser = { id: 'user123', username: 'test' };
+  const testUser = { id: 'user123', username: 'test', name: 'John Doe', address: '123 Main St, Philadelphia, PA' };
   if (username === 'test' && password === 'password') {
     console.log('Login successful:', testUser);
     return res.json({ user: testUser });
@@ -109,6 +119,51 @@ router.get('/api/plan', requireAuth, async (req, res) => {
     console.error('Error fetching routes:', err);
     res.status(500).json({ error: 'Failed to fetch routes' });
   }
+});
+
+router.get('/api/user/profile', async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+  try {
+    const profiles = await readProfiles();
+    const user = profiles.find((u) => u.id === userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    console.error('Failed to read profile:', err);
+    res.status(500).json({ error: 'Failed to read profile' });
+  }
+});
+
+router.put('/api/user/profile', async (req, res) => {
+  const { id, name, address } = req.body;
+  if (!id) return res.status(400).json({ error: 'Missing user id' });
+
+  try {
+    const profiles = await readProfiles();
+    const index = profiles.findIndex((u) => u.id === id);
+    if (index === -1) return res.status(404).json({ error: 'User not found' });
+
+    profiles[index] = { ...profiles[index], name, address };
+    await writeProfiles(profiles);
+
+    console.log('Updated profile for', id);
+    res.json(profiles[index]);
+  } catch (err) {
+    console.error('Failed to update profile:', err);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+router.get('/api/user/stats', async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+  res.json({
+    distanceKm: 180.5,
+    elevationM: 2350
+  });
 });
 
 router.post('/api/plan-route', requireAuth, async (req, res) => {

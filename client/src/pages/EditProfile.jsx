@@ -4,21 +4,47 @@ import { useNavigate } from 'react-router-dom';
 export default function EditProfile() {
 
   const navigate = useNavigate();
-  const storedUser = JSON.parse(localStorage.getItem('user')) || {};
+  const storedUser = JSON.parse(localStorage.getItem('user'));
+  if (!storedUser?.id) {
+    navigate('/login');
+    return;
+  }
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser?.id) {
+      navigate('/login');
+      return;
+    }
+
+    const fetchProfile = async () => {
+      const res = await fetch(`/api/user/profile?userId=${storedUser.id}`);
+      const data = await res.json();
+      setName(data.name || '');
+      setAddress(data.address || '');
+    };
+
+    fetchProfile();
+  }, []);
+
   const [name, setName] = useState(storedUser.name || '');
   const [address, setAddress] = useState(storedUser.address || '');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    const storedUser = JSON.parse(localStorage.getItem('user'));
 
     const updatedUser = {
-      ...storedUser,
+      id: storedUser.id,
       name,
       address,
     };
 
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    navigate('/profile');
+    const res = await fetch('/api/user/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedUser)
+    });
   };
 
   return (

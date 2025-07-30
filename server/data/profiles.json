@@ -1,0 +1,10 @@
+[
+  {
+    "id": "user123",
+    "username": "test",
+    "password": "password",
+    "name": "Jane Doe",
+    "address": "123 Main St, Philadelphia, PA",
+    "profilePicture": "/default-profile-pic.png"
+  }
+]
