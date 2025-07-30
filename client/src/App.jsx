@@ -6,6 +6,9 @@ import RouteDisplay from './pages/RouteDisplay';
 import Map from './pages/Map';
 import RoutePlan from './pages/RoutePlan';
 import Login from './pages/Login.jsx';
+import UserProfile from './pages/UserProfile.jsx';
+import EditProfile from './pages/EditProfile.jsx';
+import { Menu, MenuButton, MenuItems } from '@headlessui/react';
 
 // TODO: Improve scaling on the nav bar
 // TODO: add logo to navbar
@@ -48,7 +51,7 @@ function AppLayout() {
   );
 }*/
 
-return (
+  return (
     <div className="min-h-screen">
       {!isHomePage && (
         <header className="bg-blue-500 text-white p-4 shadow-md">
@@ -72,18 +75,40 @@ return (
                       Plan
                     </Link>
                   )}
-                  <button
-                    onClick={handleLogout}
-                    className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-grey-800 bg-white border border-2 border-white hover:bg-grey-100 hover:underline rounded transition-colors"
-                  >
-                    Logout
-                  </button>
+                  <div className="relative inline-block text-left">
+                    <Menu>
+                      <MenuButton className="flex items-center px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold bg-white border border-2 border-white rounded hover:bg-gray-100 transition-colors">
+                        <img
+                          src={user.image || '/default-avatar.png'}
+                          alt="Profile"
+                          className="w-6 h-6 rounded-full mr-2"
+                        />
+                        <span className="hidden sm:inline">{user.username}</span>
+                      </MenuButton>
+                      <MenuItems className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded shadow-lg z-10">
+                        <div className="py-1">
+                          <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-gray-100">
+                            My Profile
+                          </Link>
+                          <Link to="/profile/edit" className="block px-4 py-2 text-sm hover:bg-gray-100">
+                            Edit Profile
+                          </Link>
+                          <button
+                            onClick={handleLogout}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            Logout
+                          </button>
+                        </div>
+                      </MenuItems>
+                    </Menu>
+                  </div>
                 </>
               ) : (location.pathname !== '/login' && (
-                  <Link to="/login" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-grey-800 bg-white border border-2 border-white hover:bg-grey-100 hover:underline rounded transition-colors">
-                    Login
-                  </Link>
-                )
+                <Link to="/login" className="px-2 sm:px-4 py-2 text-base sm:text-lg md:text-xl font-bold text-grey-800 bg-white border border-2 border-white hover:bg-grey-100 hover:underline rounded transition-colors">
+                  Login
+                </Link>
+              )
               )}
             </nav>
           </div>
@@ -96,6 +121,8 @@ return (
           <Route path="/map" element={<Map />} />
           <Route path="/plan" element={<RoutePlan />} />
           <Route path="/login" element={<Login />} /> {/* TODO: Replace with actual login page */}
+          <Route path="/profile" element={<UserProfile />} />
+          <Route path="/profile/edit" element={<EditProfile />} />
         </Routes>
       </main>
     </div>

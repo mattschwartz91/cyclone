@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Card from '../components/ui/Card';
 import Header from '../components/ui/Header';
+import { useNavigate } from 'react-router-dom';
 
 export default function UserProfile() {
   const [user, setUser] = useState(null);
@@ -26,6 +27,14 @@ export default function UserProfile() {
       fetchStats();
     }
   }, []);
+
+  const navigate = useNavigate();
+useEffect(() => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!user) {
+    navigate('/login');
+  }
+}, []);
 
   if (!user) {
     return <div className="p-4 text-center text-gray-600">Please log in to view your profile.</div>;
