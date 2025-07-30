@@ -166,6 +166,36 @@ router.get('/api/user/stats', async (req, res) => {
   });
 });
 
+router.get('/routes', (req, res) => {
+  const userId = req.query.userId;
+  const routesPath = path.join(__dirname, '../data/routes.json');
+
+  try {
+    const data = fs.readFileSync(routesPath, 'utf-8');
+    const allRoutes = JSON.parse(data);
+    const userRoutes = allRoutes.filter(route => route.userId === userId);
+    res.json(userRoutes);
+  } catch (error) {
+    console.error('Error reading routes.json:', error);
+    res.status(500).json({ error: 'Failed to load user routes' });
+  }
+});
+
+router.get('/api/user/routes', async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+  try {
+    const raw = await fs.readFile(dataPath, 'utf8');
+    const routes = JSON.parse(raw);
+    const userRoutes = routes.filter(route => route.userId === userId);
+    res.json(userRoutes);
+  } catch (error) {
+    console.error('Error reading routes.json:', error);
+    res.status(500).json({ error: 'Failed to load user routes' });
+  }
+});
+
 router.post('/api/plan-route', requireAuth, async (req, res) => {
   const { start, end } = req.body;
   if (!Array.isArray(start) || !Array.isArray(end)) {

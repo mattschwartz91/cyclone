@@ -83,22 +83,23 @@ function AppLayout() {
                           alt="Profile"
                           className="w-6 h-6 rounded-full mr-2"
                         />
-                        <span className="hidden sm:inline">{user.username}</span>
+                        <span className="hidden sm:inline text-black">{user.username}</span>
                       </MenuButton>
                       <MenuItems className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded shadow-lg z-10">
                         <div className="py-1">
-                          <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-gray-100">
+                          <Link to="/profile" className="block px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">
                             My Profile
                           </Link>
-                          <Link to="/profile/edit" className="block px-4 py-2 text-sm hover:bg-gray-100">
+                          <Link to="/profile/edit" className="block px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">
                             Edit Profile
                           </Link>
                           <button
                             onClick={handleLogout}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            className="w-full text-left px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50"
                           >
                             Logout
                           </button>
+
                         </div>
                       </MenuItems>
                     </Menu>
