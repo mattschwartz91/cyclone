@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ <!-- The purpose of this svg file is for the cyclone logo. The logo is a white bike inside of a blue/cyan location pin icon -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <g stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- To create wheels for the bicycle -->
+    <circle cx="22" cy="30" r="8"/>
+    <circle cx="42" cy="30" r="8"/>
+    <!-- To create the frame and handlebars of the bike -->
+    <path d="M22 30 L30 16 L42 30 M30 16 L42 16 M26 30 L42 30"/>
+  </g>
+</svg>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ <!-- The purpose of this svg file is for the cyclone logo. The logo is a white bike inside of a blue/cyan location pin icon -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <!-- To create a blue to cyan gradient coloring for the location pin -->
+    <linearGradient id="pinGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#449ceaff"/>
+      <stop offset="33%" stop-color="#4991cdff"/>
+      <stop offset="66%" stop-color="#2dd4da"/>
+      <stop offset="100%" stop-color="#00f2fe"/>
+        </linearGradient>
+      </defs>
+
+
+  <!-- To create the shape of the location pin -->
+  <path d="M32 4c-10 0-18 8-18 18 0 14 18 38 18 38s18-24 18-38C50 12 42 4 32 4z" fill="url(#pinGradient)"/>
+
+  <!-- To create a white bicycle icon -->
+  <g stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- To create wheels for the bicycle -->
+    <circle cx="22" cy="30" r="8"/>
+    <circle cx="42" cy="30" r="8"/>
+    <!-- To create the frame and handlebars of the bike -->
+    <path d="M22 30 L30 16 L42 30 M30 16 L42 16 M26 30 L42 30"/>
+  </g>
+</svg>

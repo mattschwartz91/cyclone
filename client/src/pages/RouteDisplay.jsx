@@ -1,374 +1,231 @@
-import React, { useEffect, useState } from 'react';
-import config from '../config';
-import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet'; // Added Polyline, Marker, Popup
-import 'leaflet/dist/leaflet.css';
-
-// UI & components
-import GpxLoader from '../components/GpxLoader';
-import StatsCard from '../components/StatsCard';
+// pages/RouteDisplay.jsx
+import React, {useState, useEffect} from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
+import Header from '../components/Header';
+import Button from '../components/Button';
+import ButtonGradient from '../assets/svg/ButtonGradient';
+import RouteStats from '../components/RouteStats';
 import RoutePreferences from '../components/RoutePreferences';
 import CueSheet from '../components/CueSheet';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import Header from '../components/ui/Header';
+import { generateRoute } from '../utils/routeApi';
 
-function SavedRoutesModal({ routes, onLoad, onClose }) {
-  return (
-    <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
-        <h2 className="text-2xl font-semibold text-center mb-4 text-gray-800">Saved Routes</h2>
-
-        {routes.length > 0 ? (
-          <ul className="divide-y divide-gray-300">
-            {routes.map(route => (
-              <li
-                key={route.id}
-                className="py-3 px-4 hover:bg-gray-100 cursor-pointer"
-                onClick={() => {
-                  onLoad(route.id);
-                  onClose();
-                }}
-              >
-                {route.routeName}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-center text-gray-600">No saved routes.</p>
-        )}
-
-        <button
-          className="mt-4 w-full py-2 bg-gray-300 text-black rounded hover:bg-gray-400"
-          onClick={onClose}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
+function calculateRouteStats(route) {
+    if (!route || route.length < 2) return { distanceKm: null, elevationM: null };
+    let distanceKm = 0;
+    let elevationM = 0;
+    for (let i = 1; i < route.length; i++) {
+        const lat1 = route[i - 1].lat, lon1 = route[i - 1].lon;
+        const lat2 = route[i].lat, lon2 = route[i].lon;
+        // Haversine formula for distance
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        distanceKm += R * c;
+        // Elevation gain (if available)
+        if (route[i].elevation !== undefined && route[i - 1].elevation !== undefined) {
+            const gain = route[i].elevation - route[i - 1].elevation;
+            if (gain > 0) elevationM += gain;
+        }
+    }
+    return { distanceKm, elevationM };
 }
 
 export default function RouteDisplay() {
-  const [cueSheet, setCueSheet] = useState([]);
-  const [unitSystem, setUnitSystem] = useState("imperial");
-  const [rawStats, setRawStats] = useState({ distanceKm: null, elevationM: null });
-  const [routeName, setRouteName] = useState("Default Route");
-  const [waypoints, setWaypoints] = useState([]);
-  const [savedRoutes, setSavedRoutes] = useState([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [selectedRouteId, setSelectedRouteId] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [preferences, setPreferences] = useState({
-    startingPoint: null,
-    endingPoint: null,
-    distanceTarget: null,
-    elevationTarget: null,
-    bikeLanes: false,
-    pointsOfInterest: false,
-  });
+    const location = useLocation();
+    const navigate = useNavigate();
+    const routePreferences = location.state?.preferences || {};
+    
+    const [cueSheet, setCueSheet] = useState([]);
+    // default units = imperial
+    const [unitSystem, setUnitSystem] = useState("imperial");
+    // gpx info is in metric
+    const [rawStats, setRawStats] = useState({ distanceKm: null, elevationM: null });
+    // name of current route
+    // TODO: possible AI integration can be naming routs
+    const [routeName, setRouteName] = useState("Generated Route");
+    const [stats, setStats] = useState({ distanceKm: null, elevationM: null });
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const routeReady = user?.id && routeName.trim() && Array.isArray(waypoints) && waypoints.length > 0;
+    // route preferences/parameters - use passed state or defaults
+    // basic: starting point, target distance, target elevation
+    // advanced: bike routes weight, poi weight
+    // TODO: use location to set default starting point, otherwise make it city hall
+    // TODO: default distace: 20 miles; default elevation: 1000ft
+    const [preferences, setPreferences] = useState({
+        start_lat: routePreferences.startLat || 39.95,
+        start_lon: routePreferences.startLon || -75.16,
+        end_lat: routePreferences.endLat || 39.98,
+        end_lon: routePreferences.endLon || -75.20,
+        distance_target: routePreferences.distanceTarget || 8.0,
+        elevation_target: routePreferences.elevationTarget || 100,
+        bike_lanes: routePreferences.bikeLanes || true,
+        points_of_interest: routePreferences.pointsOfInterest || false,
+        avoid_hills: routePreferences.avoidHills || true,
+    });
+    const [route, setRoute] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!user || !user.id) return;
-    const loadSavedRoutes = async () => {
-      try {
-        const res = await fetch('/api/routes'); // ✅ Fetch from backend
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const routes = await res.json();
-        const userRoutes = routes.filter(r => r.userId === user.id);
-        setSavedRoutes(userRoutes);
-      } catch (err) {
-        console.error('Failed to load saved routes from backend:', err);
-        setError('Failed to load saved routes.');
-      }
+    // Auto-generate route when component mounts with preferences
+    useEffect(() => {
+        if (routePreferences && Object.keys(routePreferences).length > 0) {
+            handleGenerateRoute();
+        }
+    }, []);
+
+    const handleGenerateRoute = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await generateRoute(preferences);
+            setRoute(data.route);
+            setRouteName(`Route (${data.total_length_km?.toFixed(2) || '?'} km)`);
+            
+            // Include total ride time from API response
+            const routeStats = calculateRouteStats(data.route);
+            routeStats.totalRideTime = data.total_ride_time;
+            routeStats.totalRideTimeMinutes = data.total_ride_time_minutes;
+            
+            setStats(routeStats);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    loadSavedRoutes();
-  }, [user]);
+    return (
+        <>
+            <div className="pt-[4.75rem] lg:pt-[6.25rem] overflow-hidden">
+                <Header/>
+                <div className="min-h-screen bg-gradient-to-br from-n-8 via-n-7 to-n-6 text-n-1 p-4">
+                    <motion.div 
+                        className="container mx-auto"
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                    >
+                        {/* Back Button */}
+                        <motion.div 
+                            className="mb-6"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.6, delay: 0.2 }}
+                        >
+                            <Button 
+                                onClick={() => navigate('/')}
+                                className="flex items-center gap-2"
+                                outline
+                            >
+                                ← Back to Home
+                            </Button>
+                        </motion.div>
 
-  const geocodeAddress = async (address) => {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-    const data = await res.json();
-    if (!data || !data[0]) throw new Error(`Could not geocode: ${address}`);
-    return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
-  };
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            {/* Left Sidebar - Route Preferences */}
+                            <motion.div 
+                                className="lg:col-span-3"
+                                initial={{ opacity: 0, x: -40 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.8, delay: 0.3 }}
+                            >
+                                <div className="space-y-4">
+                                    <div className="bg-n-8/40 backdrop-blur-sm rounded-2xl border border-n-2/20 p-6">
+                                        <h3 className="text-lg font-semibold mb-4">Route Preferences</h3>
+                                        <RoutePreferences preferences={preferences} setPreferences={setPreferences} />
+                                    </div>
+                                    <Button className="w-full" onClick={handleGenerateRoute} disabled={loading}>
+                                        {loading ? 'Generating...' : 'Generate New Route'}
+                                    </Button>
+                                    {error && (
+                                        <motion.div 
+                                            className="p-4 bg-color-3/20 border border-color-3/50 rounded-xl"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                        >
+                                            <p className="text-color-3 text-sm font-medium">{error}</p>
+                                        </motion.div>
+                                    )}
+                                </div>
+                            </motion.div>
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+                            {/* Center - Map and Route Name */}
+                            <motion.div 
+                                className="lg:col-span-6 flex flex-col items-center space-y-4"
+                                initial={{ opacity: 0, y: 40 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.8, delay: 0.4 }}
+                            >
+                                <h2 className="text-2xl font-bold text-center">{routeName}</h2>
+                                <div className="w-full h-[400px] lg:h-[500px] xl:h-[600px] rounded-2xl shadow-xl overflow-hidden border border-n-2/20">
+                                    <MapContainer className="h-full w-full" center={[39.95, -75.16]} zoom={13}>
+                                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                        {route && (
+                                            <>
+                                                <Polyline positions={route.map(pt => [pt.lat, pt.lon])} color="#ac6cff" weight={4} />
+                                                {/* Start Marker */}
+                                                <Marker position={[route[0].lat, route[0].lon]}>
+                                                    <Popup>Start</Popup>
+                                                </Marker>
+                                                {/* End Marker */}
+                                                <Marker position={[route[route.length - 1].lat, route[route.length - 1].lon]}>
+                                                    <Popup>End</Popup>
+                                                </Marker>
+                                            </>
+                                        )}
+                                    </MapContainer>
+                                </div>
+                            </motion.div>
 
-    if (!user || !user.id) {
-      setError('Please log in to save routes.');
-      return;
-    }
-
-    if (!routeName.trim() || waypoints.length === 0) {
-      setError('Route name and waypoints are required.');
-      return;
-    }
-
-    const timestamp = Date.now();
-
-    const routeData = {
-      id: timestamp,
-      userId: user.id,
-      routeName: routeName.trim(),
-      waypoints,
-      rawStats,
-      cueSheet,
-      preferences,
-      createdAt: new Date(timestamp).toISOString(),
-    };
-
-    try {
-      const res = await fetch('/api/plan/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User': JSON.stringify(user),
-        },
-        body: JSON.stringify(routeData),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccess('Route saved successfully!');
-        setSavedRoutes(prev => [...prev, routeData]);
-        setRouteName("Default Route");
-      } else {
-        setError(data.error || 'Failed to save route.');
-      }
-    } catch (err) {
-      console.error('Error saving route:', err);
-      setError('Unable to connect to the server.');
-    }
-  };
-
-  const handlePlanRoute = async () => {
-    setError('');
-    setSuccess('');
-
-    if (
-      !preferences.startingPoint ||
-      !preferences.endingPoint ||
-      !Array.isArray(preferences.startingPoint) ||
-      !Array.isArray(preferences.endingPoint)
-    ) {
-      setError('Please select valid starting and ending points.');
-      return;
-    }
-
-    try {
-      const startCoord = await geocodeAddress(preferences.startingPoint);
-      const endCoord = await geocodeAddress(preferences.endingPoint);
-
-      const res = await fetch('/api/plan-route', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User': JSON.stringify(user)
-        },
-        body: JSON.stringify({
-          start: startCoord,
-          end: endCoord
-        })
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Route planning failed');
-      }
-
-      const coords = data.geometry.coordinates.map(([lon, lat]) => ({ lat, lon }));
-      setWaypoints(coords);
-      setRawStats({ distanceKm: data.distance / 1000, elevationM: 0 });
-      setCueSheet([]);
-      setSuccess('Route planned successfully!');
-    } catch (err) {
-      console.error('Error planning route:', err);
-      setError(err.message);
-    }
-  };
-
-  const handleLoadRoute = (routeId) => {
-    const selectedRoute = savedRoutes.find(route => String(route.id) === String(routeId));
-    if (selectedRoute) {
-      if (selectedRoute.userId !== user.id) {
-        setError('You do not have permission to load this route.');
-        return;
-      }
-      setRouteName(selectedRoute.routeName);
-      setWaypoints(selectedRoute.waypoints);
-      setRawStats(selectedRoute.rawStats || { distanceKm: null, elevationM: null });
-      setCueSheet(selectedRoute.cueSheet || []);
-      setPreferences(selectedRoute.preferences || preferences);
-      setSelectedRouteId(routeId);
-      setSuccess('Route loaded successfully!');
-    } else {
-      setError('Route not found.');
-    }
-  };
-
-  const handleTestSaveStraightRoute = async () => {
-    setError('');
-    setSuccess('');
-
-    if (!user || !user.id) {
-      setError('Please log in to save routes.');
-      return;
-    }
-
-    const from = preferences.startingPoint || "Philadelphia, PA";
-    const to = preferences.endingPoint || "New York, NY";
-
-    try {
-      const startCoord = await geocodeAddress(from);
-      const endCoord = await geocodeAddress(to);
-      const defaultName = `Straight line: ${startCoord} to ${endCoord}`;
-      const nameToSave = routeName.trim() !== '' ? routeName : defaultName;
-
-      const route = {
-        id: Date.now(),
-        userId: user.id,
-        routeName: nameToSave,
-        waypoints: [
-          { lat: startCoord[1], lon: startCoord[0] },
-          { lat: endCoord[1], lon: endCoord[0] },
-        ],
-        rawStats: {
-          distanceKm: Math.sqrt(
-            Math.pow(startCoord[0] - endCoord[0], 2) +
-            Math.pow(startCoord[1] - endCoord[1], 2)
-          ) * 111,
-          elevationM: 0,
-        },
-        cueSheet: [],
-        preferences,
-        createdAt: new Date().toISOString(),
-      };
-
-      const res = await fetch('/api/plan/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User': JSON.stringify(user),
-        },
-        body: JSON.stringify(route),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setSuccess('Test route saved successfully!');
-        setSavedRoutes(prev => [...prev, route]);
-      } else {
-        setError(data.error || 'Failed to save test route.');
-      }
-    } catch (err) {
-      console.error('Failed to save test route:', err);
-      setError('Could not create or save test route.');
-    }
-  };
-
-  return (
-    <div className="bg-base min-h-screen text-gray-800 p-4 relative z-0">
-      <div className="max-w-screen-xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-3 space-y-4">
-            <RoutePreferences preferences={preferences} setPreferences={setPreferences} />
-            <Button className="w-full" onClick={handlePlanRoute}>Generate Route</Button>
-            <form onSubmit={handleSave}>
-              <Button
-                type="submit"
-                className={`w-full ${routeReady
-                  ? 'bg-black text-white hover:bg-gray-900'
-                  : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                  }`}
-                disabled={!routeReady}
-              >
-                Save Route
-              </Button>
-              {/* For testing only */}
-              <Button className="w-full bg-blue-200" onClick={handleTestSaveStraightRoute}>
-                Save Test Straight Route
-              </Button>
-            </form>
-            {user?.id ? (
-              savedRoutes.length > 0 ? (
-                <div>
-                  <Button className="w-full" onClick={() => setIsModalOpen(true)}>
-                    Load Saved Routes
-                  </Button>
+                            {/* Right Sidebar - Stats and Cue Sheet */}
+                            <motion.div 
+                                className="lg:col-span-3"
+                                initial={{ opacity: 0, x: 40 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.8, delay: 0.5 }}
+                            >
+                                <div className="space-y-4">
+                                    <div className="bg-n-8/40 backdrop-blur-sm rounded-2xl border border-n-2/20 p-6">
+                                        <RouteStats stats={stats} unitSystem={unitSystem} setUnitSystem={setUnitSystem} />
+                                    </div>
+                                    
+                                    <div className="bg-n-8/40 backdrop-blur-sm rounded-2xl border border-n-2/20 p-6">
+                                        <CueSheet cueSheet={cueSheet} />
+                                    </div>
+                                    
+                                    <div className="space-y-3">
+                                        <Button 
+                                            className="w-full" 
+                                            onClick={() => {
+                                                // TODO: Generate and download actual GPX file
+                                                console.log("Exporting route as GPX...");
+                                            }}
+                                        >
+                                            Export GPX
+                                        </Button>
+                                        
+                                        <Button 
+                                            className="w-full" 
+                                            onClick={() => {
+                                                // TODO: Share route functionality
+                                                console.log("Sharing route...");
+                                            }}
+                                            outline
+                                        >
+                                            Share Route
+                                        </Button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    </motion.div>
                 </div>
-              ) : (
-                <p className="text-gray-500">No saved routes found for your account.</p>
-              )
-            ) : (
-              <p className="text-gray-500">Please log in to view your saved routes.</p>
-            )}
-            {error && <p className="text-red-500">{error}</p>}
-            {success && <p className="text-green-500">{success}</p>}
-          </div>
-
-          <div className="lg:col-span-6 flex flex-col items-center space-y-4">
-            <Header className="font-semibold text-center" level={2}>{routeName}</Header>
-            <input
-              type="text"
-              className="border p-2 w-full rounded"
-              value={routeName}
-              onChange={(e) => setRouteName(e.target.value)}
-              placeholder="Enter route name"
-            />
-            <div className="w-full h-[400px] lg:h-[500px] xl:h-[600px] rounded-xl shadow-lg overflow-hidden">
-              <MapContainer className="h-full w-full" center={[39.95, -75.16]} zoom={13}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <GpxLoader
-                  waypoints={waypoints}
-                  setWaypoints={setWaypoints}
-                  onStatsReady={setRawStats}
-                  onSCuesReady={setCueSheet}
-                />
-                {waypoints.length > 1 && (
-                  <>
-                    <Polyline
-                      positions={waypoints.map(w => [w.lat, w.lon])}
-                      color="blue"
-                      weight={4}
-                      opacity={0.7}
-                    />
-                    {waypoints.map((w, idx) => (
-                      <Marker key={idx} position={[w.lat, w.lon]}>
-                        <Popup>Waypoint {idx + 1}</Popup>
-                      </Marker>
-                    ))}
-                  </>
-                )}
-              </MapContainer>
             </div>
-          </div>
-
-          <div className="lg:col-span-3 space-y-4">
-            <Card>
-              <StatsCard stats={rawStats} unitSystem={unitSystem} setUnitSystem={setUnitSystem} />
-            </Card>
-            <CueSheet cueSheet={cueSheet} />
-            <Button as="a" href="/chill_hills.gpx" download="chill_hills.gpx" className="w-full">
-              Export GPX
-            </Button>
-          </div>
-        </div>
-      </div>
-      {isModalOpen && (
-        <SavedRoutesModal
-        routes={savedRoutes}
-        onLoad={handleLoadRoute}
-        onClose={() => setIsModalOpen(false)}
-      />
-    )}
-    </div>
-  );
+            <ButtonGradient />
+        </>
+    );
 }

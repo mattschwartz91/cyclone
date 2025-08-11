@@ -1,5 +1,5 @@
 <h1>Cyclone</h1>
-Our webapp developed for SPARC 2025. Let's users generate bike routes around there location.
+Cyclone is a web application built for the UPenn MCIT SPARC 2025 Challenge. It helps users generate custom cycling routes based on their current location and route preferences. 
 
 Built with:
 - React
