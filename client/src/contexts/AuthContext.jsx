@@ -32,9 +32,9 @@ export const AuthProvider = ({ children }) => {
     });
     const data = await res.json();
     if (data.ok) {
-      return { success: true, message: data.message };
+      return { ok: true, message: data.message };
     }
-    return { success: false, message: data.message || "Registration failed" };
+    return { ok: false, message: data.message || "Registration failed" };
   };
 
   // Login user

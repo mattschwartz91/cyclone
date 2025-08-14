@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Button from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useAuthModal } from '../contexts/AuthModalContext';
+
+//TODO fix bug with registration showing red text on success
 const AuthModal = () => {
   const { login, register, logout } = useAuth();
   const { authModal, closeAuthModal, openAuthModal } = useAuthModal();
