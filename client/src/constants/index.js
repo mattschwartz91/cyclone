@@ -15,17 +15,17 @@ export {
     {
       id: "0",
       title: "About",
-      url: "#about",
+      url: "/about",
     },
     {
       id: "1",
       title: "How to use",
-      url: "#how-to-use",
+      url: "/how-to-use",
     },
     {
       id: "2",
       title: "Generate Routes",
-      url: "#generate-routes",
+      url: "/generate-routes",
     },
     /*{
       id: "3",
@@ -35,13 +35,13 @@ export {
     {
       id: "4",
       title: "New account",
-      url: "#signup",
+      url: "/signup",
       onlyMobile: true,
     },
     {
       id: "5",
       title: "Sign in",
-      url: "#login",
+      url: "/login",
       onlyMobile: true,
     },
   ];

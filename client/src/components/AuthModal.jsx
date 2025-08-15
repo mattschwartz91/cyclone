@@ -4,7 +4,8 @@ import Button from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useAuthModal } from '../contexts/AuthModalContext';
 
-//TODO fix bug with registration showing red text on success
+// TODO fix bug with registration showing red text on success
+// TODO work on GPX export
 const AuthModal = () => {
   const { login, register, logout } = useAuth();
   const { authModal, closeAuthModal, openAuthModal } = useAuthModal();
