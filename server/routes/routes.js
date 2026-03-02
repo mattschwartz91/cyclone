@@ -5,13 +5,20 @@ const path = require('path');
 const router = express.Router();
 const multer = require('multer');
 const { requireAuth } = require('../middleware/auth');
-const dataPath = path.join(__dirname, '../databases/routes.json');
-const profilesPath = path.join(__dirname, '../databases/profiles.json');
-const avatarsDir = path.join(__dirname, '../../client/public/avatars');
+const { DATA_DIR } = require('../config/config.js');
+const dataPath = path.join(DATA_DIR, 'routes.json');
+const profilesPath = path.join(DATA_DIR, 'profiles.json');
+const avatarsDir = path.join(DATA_DIR, 'avatars');
 const axios = require('axios');
 
 if (!fssync.existsSync(avatarsDir)) {
-  fssync.mkdirSync(avatarsDir, { recursive: true });
+  try {
+    fssync.mkdirSync(avatarsDir, { recursive: true });
+  } catch (err) {
+    if (err.code !== 'EEXIST') {
+      console.error(`Error creating avatars directory ${avatarsDir}: ${err.message}`);
+    }
+  }
 }
 
 const storage = multer.diskStorage({
@@ -246,7 +253,7 @@ router.get('/user/stats', async (req, res) => {
 
 router.get('/routes', (req, res) => {
   const username = req.query.username;
-  const routesPath = path.join(__dirname, '../databases/routes.json');
+  const routesPath = path.join(DATA_DIR, 'routes.json');
 
   try {
     const data = fs.readFileSync(routesPath, 'utf-8');
@@ -304,7 +311,7 @@ router.get('/profile-data', (req, res) => {
   if (!username) return res.status(400).json({ error: 'Username required' });
 
   try {
-    const profilesPath = path.join(__dirname, '../databases/profiles.json');
+    const profilesPath = path.join(DATA_DIR, 'profiles.json');
     const profiles = JSON.parse(fssync.readFileSync(profilesPath, 'utf8'));
 
     const profile = profiles.find(p => p.username === username);

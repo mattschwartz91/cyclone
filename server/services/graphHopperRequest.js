@@ -5,7 +5,6 @@ const { formatDuration } = require('../utils/formatters');
 // const { formatDistance } = require('../utils/formatters'); 
 const { getInstructionType } = require('../utils/instructionMappers');
 const { extractStreetName } = require('../utils/extractStreet');
-const { getOpenElevation } = require('./openElevationRequest');
 
 async function getGraphHopperRoute(routeRequest) {
   const { start, end, options } = routeRequest;
@@ -38,13 +37,13 @@ async function getGraphHopperRoute(routeRequest) {
 
   if (response.data.paths && response.data.paths.length > 0) {
     const route = response.data.paths[0];
-    return await formatGraphHopperResponse(route, options);
+    return formatGraphHopperResponse(route, options);
   }
 
   return null;
 }
 
-async function formatGraphHopperResponse(route, options) {
+function formatGraphHopperResponse(route, options) {
   const coordinates = decodeGraphHopperPolyline(route.points);
   const distance = route.distance; // in meters
   const duration = route.time; // in milliseconds
@@ -176,16 +175,7 @@ async function formatGraphHopperResponse(route, options) {
   const totalRideTimeSeconds = duration / 1000; // Convert ms to seconds
   const totalRideTimeMinutes = totalRideTimeSeconds / 60; // Convert to minutes
 
-  // GraphHopper free tier doesn't provide elevation data, so try Open Elevation
-  let elevationGain = null;
-  console.log('GraphHopper free tier does not provide elevation data, trying Open Elevation...');
-  const openElevationData = await getOpenElevation(coordinates, options);
-  if (openElevationData !== null) {
-    elevationGain = openElevationData;
-    console.log(`Got elevation data from Open Elevation API: ${elevationGain} m`);
-  } else {
-    console.log('No elevation data available from Open Elevation API');
-  }
+  const elevationGain = null;
 
   // Determine unit system and calculate total_distance
   const unitSystem = options?.unit_system || 'km';

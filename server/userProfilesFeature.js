@@ -4,9 +4,10 @@ const fssync = require('fs');
 const path = require('path');
 const router = express.Router();
 const multer = require('multer');
-const profilesPath = path.join(__dirname, '../databases/profiles.json');
+const { DATA_DIR } = require('./config/config.js');
+const profilesPath = path.join(DATA_DIR, 'profiles.json');
 const dbUsers = require('./dbUsers.js');
-const avatarsDir = path.join(__dirname, '../../client/public/avatars');
+const avatarsDir = path.join(DATA_DIR, 'avatars');
 
 function requireAuth(req, res, next) {
   if (!req.session || !req.session.user || !req.session.user.username) {
@@ -23,7 +24,13 @@ function requireAuth(req, res, next) {
 
 // Ensure avatars directory exists
 if (!fssync.existsSync(avatarsDir)) {
-  fssync.mkdirSync(avatarsDir, { recursive: true });
+  try {
+    fssync.mkdirSync(avatarsDir, { recursive: true });
+  } catch (err) {
+    if (err.code !== 'EEXIST') {
+      console.error(`Error creating avatars directory ${avatarsDir}: ${err.message}`);
+    }
+  }
 }
 
 // Configure multer for avatar uploads

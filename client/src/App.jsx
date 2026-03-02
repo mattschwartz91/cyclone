@@ -1,5 +1,5 @@
 import './index.css';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import ButtonGradient from './assets/svg/ButtonGradient';
 import Header from './components/Header';
@@ -7,12 +7,9 @@ import Home from './components/Home';
 import About from './components/About';
 import GenerateRoutes from './components/GenerateRoutes';
 import ErrorBoundary from './components/ErrorBoundary';
-import UserProfile from './components/UserProfile';
-import EditProfile from './components/EditProfile';
 import { AuthModalProvider } from './contexts/AuthModalContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { useAuth } from './contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { useAuthModal } from './contexts/AuthModalContext';
 import { UnitsContextProvider} from "./contexts/UnitsContext";
 
 // Main App Layout Component
@@ -101,41 +98,16 @@ const AppLayout = () => {
   );
 };
 
-// Protected Route Component to check authentication
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-n-8 via-n-7 to-n-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-color-1 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-n-1 text-lg">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return children;
-};
+// Redirect component that shows Coming Soon modal when profile routes are accessed
+const ComingSoonRedirect = () => {
+  const { openAuthModal } = useAuthModal();
 
-// User Profile Component Layout to allow user profile to use the same header
-const UserProfileLayout = ({ children }) => {
-  return (
-    <ErrorBoundary>
-      <div className="pt-[4.75rem] lg:pt-[6.25rem] overflow-hidden">
-        <Header/>
-        <div className="min-h-screen">
-          {children}
-        </div>
-      </div>
-      <ButtonGradient />
-    </ErrorBoundary>
-  );
+  useEffect(() => {
+    // Trigger the Coming Soon modal after redirect
+    openAuthModal('coming-soon');
+  }, []);
+
+  return <Navigate to="/" replace />;
 };
 
 const App = () => {
@@ -145,20 +117,8 @@ const App = () => {
         <UnitsContextProvider>
           <Routes>
             <Route path="/" element={<AppLayout />} />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <UserProfileLayout>
-                  <UserProfile />
-                </UserProfileLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/edit-profile" element={
-              <ProtectedRoute>
-                <UserProfileLayout>
-                  <EditProfile />
-                </UserProfileLayout>
-              </ProtectedRoute>
-            } />
+            <Route path="/profile" element={<ComingSoonRedirect />} />
+            <Route path="/edit-profile" element={<ComingSoonRedirect />} />
           </Routes>
         </UnitsContextProvider>
       </AuthModalProvider>

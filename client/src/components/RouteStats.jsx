@@ -7,7 +7,7 @@ export default function RouteStats({ stats, elevationProfile, elevationStats }) 
     const toggleUnits = () => setUnits((u) => (u === "imp" ? "met" : "imp"));
 
     const formatElevation = (m) =>
-        `${Math.round(mToUi(Number(m ?? 0), units))} ${elevLabel(units)}`;
+        m == null ? '—' : `${Math.round(mToUi(Number(m), units))} ${elevLabel(units)}`;
 
     const formatDistance = (km) =>
         `${kmToUi(Number(km ?? 0), units).toFixed(2)} ${distLabel(units)}`;

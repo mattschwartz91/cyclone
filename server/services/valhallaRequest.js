@@ -4,7 +4,26 @@ const { decodeValhallaPolyline } = require('../utils/polylineDecoder');
 const { formatDuration } = require('../utils/formatters');
 // const { formatDistance } = require('../utils/formatters'); // Commented out
 const { getValhallaInstructionType } = require('../utils/instructionMappers');
-const { getOpenElevation } = require('./openElevationRequest');
+
+function buildBicycleCostingOptions(options) {
+  const bicycle = {};
+  if (options.avoid_hills) {
+    bicycle.use_hills = 0.1;
+  } else if (options.route_type === 'training') {
+    bicycle.use_hills = 0.9;
+  }
+  if (options.use_bike_lanes) {
+    bicycle.use_roads = 0.1;
+  } else if (options.avoid_traffic) {
+    bicycle.use_roads = 0.2;
+  }
+  if (options.route_type === 'offroad') {
+    bicycle.bicycle_type = 'Mountain';
+  } else if (options.route_type === 'training') {
+    bicycle.bicycle_type = 'Road';
+  }
+  return Object.keys(bicycle).length > 0 ? { bicycle } : null;
+}
 
 async function getValhallaRoute(waypoints, options) {
   console.log('=== STARTING VALHALLA REQUEST ===');
@@ -25,14 +44,13 @@ async function getValhallaRoute(waypoints, options) {
     locations: locations,
     costing: 'bicycle',
     directions_options: { units: valhallaUnits },
-    shape_match: 'edge_walk',
-    filters: {
-      attributes: ['edge.length', 'edge.speed', 'edge.elevation'],
-      action: 'include'
-    },
-    shape: 'detailed',
-    elevation: true
+    elevation_interval: 30
   };
+
+  const costingOptions = buildBicycleCostingOptions(options);
+  if (costingOptions) {
+    requestBody.costing_options = costingOptions;
+  }
 
   console.log('Valhalla request:', {
     url: ROUTING_APIS.VALHALLA.url,
@@ -40,30 +58,45 @@ async function getValhallaRoute(waypoints, options) {
     body: requestBody
   });
 
-  console.log('=== MAKING AXIOS REQUEST ===');
+  console.log('=== MAKING VALHALLA AXIOS REQUEST ===');
+  console.log('Valhalla request body:', JSON.stringify(requestBody, null, 2));
 
-  const response = await axios.post(ROUTING_APIS.VALHALLA.url, requestBody, {
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    timeout: 20000
-  });
+  let response;
+  try {
+    response = await axios.post(ROUTING_APIS.VALHALLA.url, requestBody, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000  // Increased from 20s to 30s for multi-waypoint rerouting
+    });
 
-  console.log('=== AXIOS REQUEST COMPLETED ===');
-  console.log('Response data trip legs:', response.data.trip ? response.data.trip.legs?.length : 'No trip data');
+    console.log('=== VALHALLA REQUEST SUCCESS ===');
+    console.log('Response status:', response.status);
+    console.log('Response data trip legs:', response.data.trip ? response.data.trip.legs?.length : 'No trip data');
+  } catch (error) {
+    console.error('=== VALHALLA REQUEST FAILED ===');
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Is timeout?', error.code === 'ECONNABORTED');
+    console.error('Response data:', error.response?.data);
+    console.error('Response status:', error.response?.status);
+    throw error;
+  }
 
   if (response.data.trip && response.data.trip.legs) {
     console.log('=== CALLING formatValhallaResponse ===');
     console.log('valhallaUnits before function call:', valhallaUnits);
-    const result = await formatValhallaResponse(response.data.trip, options, valhallaUnits);
+    const result = formatValhallaResponse(response.data.trip, options, valhallaUnits);
     console.log('=== formatValhallaResponse COMPLETED ===');
     return result;
   }
 
+  console.error('=== VALHALLA NO VALID ROUTE ===');
+  console.error('Response data:', JSON.stringify(response.data));
   throw new Error('No valid route found from Valhalla');
 }
 
-async function formatValhallaResponse(trip, options, valhallaUnits) {
+function formatValhallaResponse(trip, options, valhallaUnits) {
   console.log(`=== VALHALLA RESPONSE FORMATTING START ===`);
   console.log(`valhallaUnits parameter received:`, valhallaUnits, `(type: ${typeof valhallaUnits})`);
   console.log(`trip.legs.length:`, trip.legs ? trip.legs.length : 'trip.legs is undefined');
@@ -106,9 +139,27 @@ async function formatValhallaResponse(trip, options, valhallaUnits) {
     const distanceUnit = valhallaUnits === 'miles' ? 'mi' : 'km';
     console.log(`Leg ${legIndex} distance: ${legDistance} ${distanceUnit}, Running total: ${totalDistance} ${distanceUnit}`);
     
-    // Extract elevation gain from Valhalla if available
-    if (leg.summary && leg.summary.elevation_gain !== undefined) {
-      totalElevationGain += leg.summary.elevation_gain; // in meters
+    console.log(`Leg ${legIndex} elevation data:`, {
+      summary_elevation_gain: leg.summary?.elevation_gain,
+      elevation_array_length: leg.elevation?.length,
+      elevation_sample: leg.elevation?.slice(0, 5)
+    });
+
+    // Extract elevation gain. Prefer leg.summary.elevation_gain when present,
+    // otherwise compute from the leg.elevation array returned by elevation_interval.
+    if (leg.summary && leg.summary.elevation_gain) {
+      const gainMeters = valhallaUnits === 'miles'
+        ? leg.summary.elevation_gain * 0.3048
+        : leg.summary.elevation_gain;
+      totalElevationGain += gainMeters;
+    } else if (leg.elevation && leg.elevation.length > 1) {
+      let legGain = 0;
+      for (let i = 1; i < leg.elevation.length; i++) {
+        const diff = leg.elevation[i] - leg.elevation[i - 1];
+        if (diff > 0) legGain += diff;
+      }
+      const gainMeters = valhallaUnits === 'miles' ? legGain * 0.3048 : legGain;
+      totalElevationGain += gainMeters;
     }
 
     // Process maneuvers for turn-by-turn instructions
@@ -168,16 +219,7 @@ async function formatValhallaResponse(trip, options, valhallaUnits) {
     totalDistance * 1609.34 : // Convert miles to meters
     totalDistance * 1000;     // Convert km to meters
 
-  // Always use Open Elevation API for elevation data
-  let elevationGain = null;
-  console.log('Using Open Elevation API for all elevation data...');
-  const openElevationData = await getOpenElevation(coordinates, options);
-  if (openElevationData !== null) {
-    elevationGain = openElevationData;
-    console.log(`Using Open Elevation data: ${elevationGain} m}`);
-  } else {
-    console.log('No elevation data available from Open Elevation API');
-  }
+  const elevationGain = totalElevationGain > 0 ? Math.round(totalElevationGain) : null;
 
   console.log(`Valhalla route coordinates: ${coordinates.length} points`);
   console.log('First few coordinates:', coordinates.slice(0, 3));
@@ -207,7 +249,7 @@ async function formatValhallaResponse(trip, options, valhallaUnits) {
     route: coordinates,
     total_distance: totalDistanceUserSpecified,  
     total_distance_unit: unitLabel,          
-    total_length_km: totalDistanceUserSpecified, 
+    total_length_km: totalDistanceMeters / 1000,
     total_elevation_gain: elevationGain,
     total_ride_time: formatDuration(totalTime),
     total_ride_time_minutes: totalTime / 60,

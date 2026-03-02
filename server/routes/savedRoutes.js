@@ -3,8 +3,9 @@ const fs = require('fs').promises;
 const path = require('path');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { DATA_DIR } = require('../config/config.js');
 
-const dataPath = path.join(__dirname, '../databases/routes.json');
+const dataPath = path.join(DATA_DIR, 'routes.json');
 
 const ensureDataFile = async () => {
   const dir = path.dirname(dataPath);

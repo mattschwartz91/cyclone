@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL } from '../utils/apiBase.js';
 
 export default function EditProfile() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export default function EditProfile() {
     
     const fetchProfile = async () => {
       try {
-        const base = import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
+        const base = API_BASE_URL || '';
         const res = await fetch(`${base}/api/user/profile`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
@@ -95,7 +96,8 @@ export default function EditProfile() {
         formData.append('avatar', avatarFile);
       }
 
-      const res = await fetch(`${import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:3000'}/api/user/profile/${profile.id}`, {
+      const base = API_BASE_URL || '';
+      const res = await fetch(`${base}/api/user/profile/${profile.id}`, {
         method: 'PUT',
         credentials: 'include',
         body: formData

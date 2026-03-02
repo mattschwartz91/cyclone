@@ -1,22 +1,15 @@
 import { curve, CYCLONE, homeBackground } from "../constants";
-import Button from "./Button";
 import Section from "./design/Section";
-import { BackgroundCircles, BottomLine, Gradient, ScrollToAboutAnimation } from "./design/Home";
+import { BackgroundCircles, ScrollToAboutAnimation } from "./design/Home";
 import { ScrollParallax } from "react-just-parallax";
 import { motion } from "framer-motion";
-import AuthModal from "./AuthModal";
-import { useAuthModal } from "../contexts/AuthModalContext";
-import { useAuth } from "../contexts/AuthContext";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import GenerateRoutes from "./GenerateRoutes";
 
 const Home = () => {
   const parallaxRef = useRef(null);
-  const navigate = useNavigate();
   const location = useLocation();
-  const {user} = useAuth();
-  const { authModal, openAuthModal, closeAuthModal, switchAuthType } = useAuthModal();
   const [activeTab, setActiveTab] = useState("home");
   
   useEffect(() => {
@@ -92,11 +85,11 @@ return (
               >
                 <ScrollToAboutAnimation 
                   onScrollClick={() => {
-                    const el = document.getElementById('about');
+                    const el = document.getElementById('generate-routes');
                     if (el) {
                       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     } else {
-                      window.location.hash = '#about';
+                      window.location.hash = '#generate-routes';
                     }
                   }}
                 />
@@ -104,12 +97,6 @@ return (
             </div>
           </div>
 
-          <AuthModal
-            isOpen={authModal.isOpen}
-            onClose={closeAuthModal}
-            type={authModal.type}
-            onSwitchType={switchAuthType}
-          />
         </Section>
       )}
 

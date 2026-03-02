@@ -1,13 +1,12 @@
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { disablePageScroll, enablePageScroll } from 'scroll-lock';
 import { cycloneLogo } from '../constants/index';
 import { navigation } from '../constants';
 import Button from './Button';
 import MenuSvg from '../assets/svg/MenuSvg';
 import { HamburgerMenu } from './design/Header';
-import { useState, useEffect, useRef } from 'react';
-import { useAuthModal} from '../contexts/AuthModalContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { useAuthModal } from '../contexts/AuthModalContext';
 
 const Header = () => {
   const location = useLocation();
@@ -15,31 +14,6 @@ const Header = () => {
   const [openNavigation, setOpenNavigation] = useState(false);
   const [currentHash, setCurrentHash] = useState(location.hash);
   const { openAuthModal } = useAuthModal();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-  const {user, logout} = useAuth();
-
-  const getAvatarUrl = (user) => {
-    // Use profilePicture as primary, fallback to avatar 
-    const avatar = user?.profilePicture || user?.avatar;
-    if (!avatar || avatar === '/avatars/default-avatar.png') {
-      // For default avatar, use it directly
-      return '/avatars/default-avatar.png';
-    }
-    if (avatar.startsWith('http')) return avatar;
-    const base = import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
-    return `${base}${avatar}`;
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Update currentHash when location changes
   useEffect(() => {
@@ -73,6 +47,12 @@ const Header = () => {
   const handleNavClick = (e, item) => {
     e.preventDefault();
     handleClick();
+
+    // Auth-related nav items (mobile) trigger the Coming Soon modal
+    if (item.url === '#signup' || item.url === '#login') {
+      openAuthModal(item.url === '#signup' ? 'signup' : 'login');
+      return;
+    }
     
     // Updates currentHash for instant visual feedback
     setCurrentHash(item.url);
@@ -130,80 +110,17 @@ const Header = () => {
 
         
 
-        {user ? (
-          <div className="relative ml-auto flex items-center" ref={dropdownRef}>
-            <span className="hidden mr-4 lg:block font-code text-sm lg:text-base xl:text-lg text-n-1/50">
-              Hi {user?.firstName || (user?.name || user?.username)?.split(' ')[0] || 'User'}!
-            </span>
-
-            <div className="relative">
-              <img
-                key={user?.profilePicture || user?.avatar || 'default'}
-                src={getAvatarUrl(user)}
-                alt="User Avatar"
-                className="w-10 h-10 rounded-full border cursor-pointer hover:opacity-90 object-cover"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                aria-haspopup="true"
-                aria-expanded={dropdownOpen}
-              />
-              <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-n-9 flex items-center justify-center translate-x-2 translate-y-2 opacity-100 drop-shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" className="w-3 h-3">
-                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                </svg>
-              </span>
-            </div>
-            {dropdownOpen && (
-              <div className="absolute right-0 top-full mt-3 w-40 bg-n-8 border border-n-6 rounded shadow-lg z-50 transform origin-top-right translate-y-0">
-                <button
-                  onClick={() => {
-                    navigate('/profile');
-                    setDropdownOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-n-1 hover:bg-n-6/50 transition-colors"
-                >
-                  Profile
-                </button>
-                <button
-                  onClick={() => {
-                    navigate('/edit-profile');
-                    setDropdownOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-n-1 hover:bg-n-6/50 transition-colors"
-                >
-                  Edit Profile
-                </button>
-                <button
-                  onClick={async () => {
-                    navigate('/');
-                    await openAuthModal("logout");
-                    setDropdownOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-n-1 hover:bg-n-6/50 transition-colors"
-                  >
-                  Logout
-                  </button>
-
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-          {!user && 
-            <>
-            <button
-              onClick={() => openAuthModal('signup')}
-              className="button hidden mr-8 text-n-1/50 transition-colors hover:text-n-1 lg:block font-code text-sm lg:text-base xl:text-lg "
-            >
-              New account
-            </button>
-            <Button className="hidden lg:flex lg:flec text-sm" onClick={() => openAuthModal('login')}>
-              Sign in
-            </Button>
-            </> 
-            }
-          
-          </>
-        )}
+        <div className="hidden lg:flex items-center ml-auto">
+          <button
+            onClick={() => openAuthModal('signup')}
+            className="button mr-8 text-n-1/50 transition-colors hover:text-n-1 font-code text-sm lg:text-base xl:text-lg"
+          >
+            New account
+          </button>
+          <Button className="text-sm" onClick={() => openAuthModal('login')}>
+            Sign in
+          </Button>
+        </div>
         
 
         <Button

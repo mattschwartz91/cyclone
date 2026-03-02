@@ -2,7 +2,7 @@ require('dotenv').config({ path: '../.env' });
 const express = require('express')
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
-const { generateRoute } = require('./services/generateRoute.js');
+const { generateRoute, routeWaypointsOnly } = require('./services/generateRoute.js');
 const { getLocationFromIP, getClientIP } = require('./utils/geolocation.js');
 const app = express();
 const port = process.env.PORT || 3000;
@@ -13,8 +13,19 @@ const SQLiteStore = require('connect-sqlite3')(session);
 const multer = require('multer');
 const fs = require('fs').promises;
 const path = require('path');
-const profilesPath = path.join(__dirname, 'databases', 'profiles.json');
-const routesPath = path.join(__dirname, 'databases', 'routes.json');
+const { DATA_DIR } = require('./config/config.js');
+// Ensure data directory exists synchronously
+const fsSync = require('fs');
+try {
+  fsSync.mkdirSync(DATA_DIR, { recursive: true });
+} catch (e) {
+  // ignore if already exists or permission error (handled in config)
+  if (e.code !== 'EEXIST') {
+    console.warn(`Warning: Could not create DATA_DIR ${DATA_DIR}: ${e.message}`);
+  }
+}
+const profilesPath = path.join(DATA_DIR, 'profiles.json');
+const routesPath = path.join(DATA_DIR, 'routes.json');
 const bodyParser = require('body-parser');
 app.use(bodyParser.json({ limit: '100mb' }));
 
@@ -95,6 +106,11 @@ const writeRoutes = async (routes) => {
 // Configure allowed frontend origin for CORS (use REACT_APP_API_BASE_URL or FRONTEND_ORIGIN env)
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || process.env.REACT_APP_API_BASE_URL || 'http://localhost:5173';
 
+console.log('CORS Configuration:', {
+  FRONTEND_ORIGIN,
+  NODE_ENV: process.env.NODE_ENV
+});
+
 // If running behind a proxy (e.g. in Docker with a reverse proxy), enable trust proxy when requested
 if (process.env.TRUST_PROXY === '1' || process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
@@ -102,25 +118,57 @@ if (process.env.TRUST_PROXY === '1' || process.env.NODE_ENV === 'production') {
 
 app.use(cors({
   origin: function(origin, callback) {
+    console.log('CORS Origin check:', { origin, FRONTEND_ORIGIN });
+    
     // Allow requests with no origin like curl/postman
-    if (!origin) return callback(null, true);
-    // Allow the configured frontend origin and localhost variants
-    const allowed = [FRONTEND_ORIGIN, 'http://localhost', 'http://127.0.0.1', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:80'];
-    if (allowed.indexOf(origin) !== -1) {
+    if (!origin) {
+      console.log('Allowing request with no origin');
       return callback(null, true);
     }
+    
+    // Allow the configured frontend origin and localhost variants
+    const allowed = [
+      FRONTEND_ORIGIN, 
+      'http://localhost', 
+      'http://127.0.0.1', 
+      'http://localhost:5173', 
+      'http://localhost:5174', 
+      'http://localhost:80',
+      'https://cyclone-front-end.onrender.com'  // Explicitly add your frontend URL
+    ];
+    
+    console.log('Allowed origins:', allowed);
+    
+    if (allowed.indexOf(origin) !== -1) {
+      console.log('Origin allowed:', origin);
+      return callback(null, true);
+    }
+    
+    console.log('Origin rejected:', origin);
     return callback(new Error('CORS policy does not allow access from the specified Origin.'), false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // allow json parsing
 app.use(express.json());
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    dataDir: DATA_DIR,
+    frontendOrigin: FRONTEND_ORIGIN
+  });
+});
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, 'public/avatars/'));
+    cb(null, path.join(DATA_DIR, 'avatars'));
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -144,17 +192,21 @@ const upload = multer({
 });
 
 // Makes sure avatars directory exists
-const avatarsDir = path.join(__dirname, 'public/avatars');
-fs.mkdir(avatarsDir, { recursive: true }).catch(console.error);
+const avatarsDir = path.join(DATA_DIR, 'avatars');
+fs.mkdir(avatarsDir, { recursive: true }).catch((err) => {
+  if (err.code !== 'EEXIST') {
+    console.error(`Error creating avatars directory ${avatarsDir}: ${err.message}`);
+  }
+});
 
 // Serve static files (including avatars)
-app.use('/avatars', express.static(path.join(__dirname, 'public/avatars')));
+app.use('/avatars', express.static(avatarsDir));
 
 // Set up sessions
 app.use(session({
   store: new SQLiteStore({
     db: 'sessions.db', 
-    dir: './databases'     
+    dir: DATA_DIR     
   }),
   secret: 'cycloneisagreatapplicationandeveryonelovesitsomuch',
   resave: false,
@@ -230,8 +282,7 @@ app.post('/api/import-route', async (req, res) => {
 app.get('/api/debug-profile-test', async (req, res) => {
   try {
     const fs = require('fs').promises;
-    const path = require('path');
-    const profilesPath = path.join(__dirname, 'databases/profiles.json');
+    const profilesPath = path.join(DATA_DIR, 'profiles.json');
     
     console.log('Reading profiles from:', profilesPath);
     const profilesData = await fs.readFile(profilesPath, 'utf8');
@@ -565,7 +616,7 @@ app.put('/api/user/profile/:id', upload.single('avatar'), async (req, res) => {
 
   try {
     // Read profiles.json
-    const profilesPath = path.join(__dirname, 'databases/profiles.json');
+    const profilesPath = path.join(DATA_DIR, 'profiles.json');
     console.log('Reading profiles from:', profilesPath);
     
     const profilesData = await fs.readFile(profilesPath, 'utf8');
@@ -693,7 +744,7 @@ app.get('/api/user/profile', async (req, res) => {
   }
 
   try {
-    const profilesPath = path.join(__dirname, 'databases/profiles.json');
+    const profilesPath = path.join(DATA_DIR, 'profiles.json');
     const profilesData = await fs.readFile(profilesPath, 'utf8');
     const profiles = JSON.parse(profilesData);
     
@@ -881,6 +932,78 @@ app.post('/api/generate-custom-route', async (req, res) => {
     console.error('Route generation error:', error);
     res.status(500).json({ 
       detail: "Route generation failed: " + error.message 
+    });
+  }
+});
+
+// Reroute with user-modified waypoints (no GPT involved)
+app.post('/api/reroute-with-waypoints', async (req, res) => {
+  console.log('\n=== REROUTE ENDPOINT CALLED ===');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Request body keys:', Object.keys(req.body));
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+
+  const { waypoints, preferences } = req.body;
+
+  console.log('Extracted waypoints:', JSON.stringify(waypoints));
+  console.log('Waypoint count:', waypoints?.length);
+  console.log('Extracted preferences:', JSON.stringify(preferences));
+
+  // Validate required parameters
+  if (!waypoints || !Array.isArray(waypoints) || waypoints.length < 2) {
+    console.error('VALIDATION FAILED: Not enough waypoints');
+    return res.status(422).json({
+      detail: 'At least 2 waypoints are required. Each waypoint must have lat and lon.'
+    });
+  }
+
+  // Validate each waypoint
+  for (let i = 0; i < waypoints.length; i++) {
+    const wp = waypoints[i];
+    if (!wp || typeof wp.lat !== 'number' || typeof wp.lon !== 'number') {
+      console.error(`VALIDATION FAILED: Invalid waypoint at index ${i}:`, wp);
+      return res.status(422).json({
+        detail: `Invalid waypoint at index ${i}: each waypoint must have numeric lat and lon.`
+      });
+    }
+  }
+
+  console.log('Validation passed. Calling routeWaypointsOnly...');
+
+  try {
+    const routeData = await routeWaypointsOnly(waypoints, preferences || {});
+
+    console.log('=== routeWaypointsOnly SUCCESS ===');
+    console.log('Route data keys:', Object.keys(routeData));
+    console.log('Reroute data being sent to frontend:', {
+      total_elevation_gain: routeData.total_elevation_gain,
+      total_ride_time: routeData.total_ride_time,
+      data_source: routeData.data_source,
+      route_coordinates_count: routeData.route ? routeData.route.length : 0
+    });
+
+    res.json(routeData);
+  } catch (error) {
+    console.error('=== REROUTE ENDPOINT ERROR ===');
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error type:', error.constructor.name);
+    console.error('Failed waypoints:', JSON.stringify(waypoints));
+    console.error('Full error:', error);
+    
+    // Provide more specific error type for frontend handling
+    let errorType = 'UNKNOWN';
+    if (error.message.includes('timeout') || error.code === 'ECONNABORTED') {
+      errorType = 'TIMEOUT';
+    } else if (error.message.includes('No valid route')) {
+      errorType = 'NO_ROUTE';
+    } else if (error.message.includes('Invalid waypoint')) {
+      errorType = 'INVALID_WAYPOINTS';
+    }
+    
+    res.status(500).json({
+      detail: 'Rerouting failed: ' + error.message,
+      error_type: errorType
     });
   }
 });

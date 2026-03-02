@@ -3,6 +3,7 @@ const path = require('path');
 const axios = require('axios');
 const { spawn } = require('child_process');
 require('dotenv').config({ path: '../.env' });
+const { DATA_DIR } = require('./config/config.js');
 
 async function createEnvFileIfMissing() {
   const envPath = path.join(__dirname, '../.env');
@@ -93,18 +94,24 @@ function setupTempDirectories() {
     path.join(__dirname, 'temp/cache'),
     path.join(__dirname, 'temp/logs'),
     path.join(__dirname, 'cache'),
-    path.join(__dirname, 'databases')
+    DATA_DIR
   ];
   
   tempDirs.forEach(dir => {
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-      console.log(`📁 Created directory: ${path.relative(__dirname, dir)}`);
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`📁 Created directory: ${path.relative(__dirname, dir)}`);
+      } catch (err) {
+        if (err.code !== 'EEXIST') {
+          console.error(`❌ Error creating directory ${dir}: ${err.message}`);
+        }
+      }
     }
   });
   
   // Create users database if it doesn't exist
-  const dbPath = path.join(__dirname, 'databases/users.db');
+  const dbPath = path.join(DATA_DIR, 'users.db');
   if (!fs.existsSync(dbPath)) {
     console.log('📊 Initializing user database...');
     const sqlite3 = require('sqlite3').verbose();

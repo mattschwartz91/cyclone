@@ -18,6 +18,44 @@ const customMarkerStyles = `
     background: transparent !important;
     border: none !important;
   }
+  .custom-intermediate-marker {
+    background: transparent !important;
+    border: none !important;
+  }
+  .draggable-marker {
+    cursor: grab !important;
+  }
+  .draggable-marker:active {
+    cursor: grabbing !important;
+  }
+  .waypoint-toggle-control {
+    background: #18181B !important;
+    border: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    overflow: hidden !important;
+  }
+  .waypoint-toggle-button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    color: #F4F4F5 !important;
+    text-decoration: none !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+  }
+  .waypoint-toggle-button:hover {
+    color: #AC6AFF !important;
+    background: rgba(172, 106, 255, 0.1) !important;
+  }
+  .waypoint-toggle-button.active {
+    color: #3B82F6 !important;
+    background: rgba(59, 130, 246, 0.15) !important;
+  }
 `;
 
 // Inject custom styles
@@ -359,6 +397,48 @@ function MapResizeHandler() {
   return null;
 }
 
+// Waypoint toggle control - shows/hides intermediate waypoints on the map
+function WaypointToggleControl({ showIntermediateWaypoints, setShowIntermediateWaypoints, waypointCount }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (waypointCount <= 2) return; // No intermediate waypoints to toggle
+
+    const toggleControl = L.control({ position: 'topright' });
+
+    toggleControl.onAdd = function () {
+      const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control waypoint-toggle-control');
+      div.style.marginTop = '4px';
+
+      div.innerHTML = `
+        <a href="#" title="${showIntermediateWaypoints ? 'Hide waypoints' : 'Show waypoints'}" 
+           role="button" aria-label="Toggle waypoint visibility" 
+           class="waypoint-toggle-button ${showIntermediateWaypoints ? 'active' : ''}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </a>
+      `;
+
+      L.DomEvent.on(div, 'click', function (e) {
+        L.DomEvent.stopPropagation(e);
+        L.DomEvent.preventDefault(e);
+        setShowIntermediateWaypoints((prev) => !prev);
+      });
+
+      return div;
+    };
+
+    toggleControl.addTo(map);
+
+    return () => {
+      map.removeControl(toggleControl);
+    };
+  }, [map, showIntermediateWaypoints, setShowIntermediateWaypoints, waypointCount]);
+
+  return null;
+}
+
 const MapComponent = ({ 
   location, 
   setLocation, 
@@ -366,7 +446,13 @@ const MapComponent = ({
   setError, 
   routeData, 
   isGenerating,
-  endingPointCoords = null 
+  endingPointCoords = null,
+  waypoints = [],
+  showIntermediateWaypoints = false,
+  setShowIntermediateWaypoints = () => {},
+  onWaypointDrag = () => {},
+  isRerouting = false,
+  isRouteModified = false
 }) => {
   const mapRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -513,6 +599,7 @@ const MapComponent = ({
           >
             <h3 className="h3 text-n-1">
               {routeData?.gpt_metadata?.gpt_route_name || 'Route Map'}
+              {isRouteModified && <span className="text-sm font-normal text-color-1 ml-2">(Modified)</span>}
             </h3>
             {routeData?.gpt_metadata?.gpt_description && (
               <motion.div
@@ -667,6 +754,13 @@ const MapComponent = ({
               </div>
             </div>
           )}
+          {/* Rerouting indicator - less obtrusive than full overlay */}
+          {isRerouting && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-n-8/90 backdrop-blur-sm rounded-full border border-color-1/30 flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-color-1 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-xs text-n-3">Rerouting...</span>
+            </div>
+          )}
           <MapContainer 
             center={location} 
             zoom={13} 
@@ -728,10 +822,84 @@ const MapComponent = ({
               </>
             )}
             
-            {/* Route Start and Destination Markers */}
-            {routeData && routeData.route && routeData.route.length > 0 && (
+            {/* Draggable Waypoint Markers */}
+            {routeData && routeData.route && routeData.route.length > 0 && waypoints.length >= 2 && (
               <>
-                {/* Destination Marker - render first so it's underneath */}
+                {waypoints.map((wp, index) => {
+                  const isStart = index === 0;
+                  const isEnd = index === waypoints.length - 1;
+                  const isIntermediate = !isStart && !isEnd;
+
+                  // Hide intermediate waypoints if toggle is off
+                  if (isIntermediate && !showIntermediateWaypoints) return null;
+
+                  // Determine marker color and label
+                  let color, label, className;
+                  if (isStart) {
+                    color = '#10B981';
+                    label = 'Route Start';
+                    className = 'custom-start-marker draggable-marker';
+                  } else if (isEnd) {
+                    color = '#EF4444';
+                    label = 'Destination';
+                    className = 'custom-end-marker draggable-marker';
+                  } else {
+                    color = '#3B82F6';
+                    label = `Waypoint ${index}`;
+                    className = 'custom-intermediate-marker draggable-marker';
+                  }
+
+                  const markerSize = isIntermediate ? 16 : 20;
+                  const borderWidth = isIntermediate ? 2 : 3;
+
+                  return (
+                    <Marker
+                      key={`waypoint-${index}`}
+                      position={[wp.lat, wp.lon]}
+                      draggable={!isRerouting}
+                      icon={L.divIcon({
+                        className: className,
+                        html: isIntermediate
+                          ? `<div style="background-color: ${color}; width: ${markerSize}px; height: ${markerSize}px; border-radius: 50%; border: ${borderWidth}px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; color: white; line-height: 1;">${index}</div>`
+                          : `<div style="background-color: ${color}; width: ${markerSize}px; height: ${markerSize}px; border-radius: 50%; border: ${borderWidth}px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                        iconSize: [markerSize, markerSize],
+                        iconAnchor: [markerSize / 2, markerSize / 2]
+                      })}
+                      eventHandlers={{
+                        dragend: (e) => {
+                          const newLatLng = e.target.getLatLng();
+                          onWaypointDrag(index, newLatLng.lat, newLatLng.lng);
+                        }
+                      }}
+                    >
+                      <Popup>
+                        <div className="text-sm text-center">
+                          <strong>{label}</strong>
+                          {isEnd && (
+                            <>
+                              <br />
+                              <span className="text-xs text-gray-600">
+                                Total distance: {routeData.total_length_formatted ||
+                                  (routeData.total_distance && routeData.total_distance_unit
+                                    ? `${routeData.total_distance.toFixed(1)} ${routeData.total_distance_unit}`
+                                    : `${kmToUi(routeData.total_length_km || 0, units).toFixed(1)} ${distLabel(units)}`)}
+                              </span>
+                            </>
+                          )}
+                          <br />
+                          <span className="text-xs text-gray-400">Drag to adjust route</span>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </>
+            )}
+            
+            {/* Fallback: show static markers when no waypoints available */}
+            {routeData && routeData.route && routeData.route.length > 0 && waypoints.length < 2 && (
+              <>
+                {/* Destination Marker */}
                 <Marker 
                   position={[
                     routeData.route[routeData.route.length - 1].lat, 
@@ -746,18 +914,12 @@ const MapComponent = ({
                 >
                   <Popup>
                     <div className="text-sm text-center">
-                      <strong>Destination</strong><br />
-                      <span className="text-xs text-gray-600">
-                        Total distance: {routeData.total_length_formatted || 
-                          (routeData.total_distance && routeData.total_distance_unit ? 
-                            `${routeData.total_distance.toFixed(1)} ${routeData.total_distance_unit}` :
-                            `${kmToUi(routeData.total_length_km || 0, units).toFixed(1)} ${distLabel(units)}`)}
-                      </span>
+                      <strong>Destination</strong>
                     </div>
                   </Popup>
                 </Marker>
                 
-                {/* Start Marker - render second so it's on top */}
+                {/* Start Marker */}
                 <Marker 
                   position={[routeData.route[0].lat, routeData.route[0].lon]}
                   icon={L.divIcon({
@@ -798,6 +960,13 @@ const MapComponent = ({
             <ZoomControl />
             <RecenterMap center={location} />
             <RouteController routeData={routeData} />
+            {waypoints.length > 2 && routeData && (
+              <WaypointToggleControl 
+                showIntermediateWaypoints={showIntermediateWaypoints}
+                setShowIntermediateWaypoints={setShowIntermediateWaypoints}
+                waypointCount={waypoints.length}
+              />
+            )}
             <MapResizeHandler />
           </MapContainer>
         </div>

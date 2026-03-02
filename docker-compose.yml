@@ -4,6 +4,7 @@ services:
       context: ./server
     ports:
       - "3000:3000"
+    restart: unless-stopped
     env_file:
       - .env              # ← add this so Node sees OPENAI_API_KEY, OPENAI_MODEL, etc.
     environment:
@@ -26,8 +27,12 @@ services:
       context: ./client
     ports:
       - "80:80"
+    restart: unless-stopped
+    depends_on:
+      node:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
       retries: 3

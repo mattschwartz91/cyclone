@@ -8,7 +8,7 @@ import MapComponent from "./MapComponent";
 import RoutePreferences from "./RoutePreferences";
 import CueSheet from "./CueSheet";
 import RouteStats from "./RouteStats";
-import { generateRoute, generateGpxFile } from "../utils/routeApi";
+import { generateRoute, generateGpxFile, rerouteWithWaypoints } from "../utils/routeApi";
 import { useAuth } from "../contexts/AuthContext";
 import { useUnits } from "../contexts/UnitsContext";
 import { kmToUi, distLabel } from "../utils/units";
@@ -48,6 +48,14 @@ const GenerateRoutes = () => {
   const [error, setError] = useState(null);
   const resultsRef = useRef(null);
   const [cueSheet, setCueSheet] = useState([]);
+
+  // Draggable waypoints state
+  const [waypoints, setWaypoints] = useState([]); // Sampled from the built route polyline
+  const [showIntermediateWaypoints, setShowIntermediateWaypoints] = useState(true);
+  const [isRerouting, setIsRerouting] = useState(false);
+  const [isRouteModified, setIsRouteModified] = useState(false);
+  const previousWaypointsRef = useRef([]); // For reverting on error
+  const originalGptMetadataRef = useRef(null); // Preserve GPT metadata across reroutes
 
   useEffect(() => {
     const selectedRoute = state?.selectedRoute;
@@ -95,6 +103,11 @@ const GenerateRoutes = () => {
       }
       setHasGeneratedRoute(true);
 
+      // Sample draggable waypoints from the loaded route
+      if (transformedRouteData.route && transformedRouteData.route.length >= 2) {
+        setWaypoints(sampleWaypointsFromRoute(transformedRouteData.route, 5));
+      }
+
       // Scroll to results section only when coming from route generation
       if (resultsRef.current) {
         resultsRef.current.scrollIntoView({ behavior: "smooth" });
@@ -127,6 +140,38 @@ const GenerateRoutes = () => {
     }
   }, [preferences?.endingPointCoords]);
 
+  /**
+   * Sample N evenly-spaced waypoints from a route polyline.
+   * These are real road coordinates (Valhalla already placed them on roads),
+   * so rerouting through them is reliable.
+   */
+  const sampleWaypointsFromRoute = (route, count = 6) => {
+    if (!route || route.length < 2) return [];
+    if (route.length <= count) {
+      // Route has fewer points than requested — use them all
+      return route.map((p) => ({ lat: p.lat, lon: p.lon }));
+    }
+
+    const sampled = [];
+    // Always include the first point (start)
+    sampled.push({ lat: route[0].lat, lon: route[0].lon });
+
+    // Pick evenly-spaced intermediate points
+    const step = (route.length - 1) / (count - 1);
+    for (let i = 1; i < count - 1; i++) {
+      const idx = Math.round(step * i);
+      sampled.push({ lat: route[idx].lat, lon: route[idx].lon });
+    }
+
+    // Always include the last point (end)
+    sampled.push({
+      lat: route[route.length - 1].lat,
+      lon: route[route.length - 1].lon,
+    });
+
+    return sampled;
+  };
+
   const handleGenerateRoute = async () => {
     const hasLocation = location || preferences.startingPointCoords;
     const hasCoordinates = location?.lat || preferences.startingPointCoords?.lat;
@@ -152,9 +197,25 @@ const GenerateRoutes = () => {
 
       const data = await generateRoute(routePreferences);
       setRouteData(data);
+      setIsRouteModified(false);
       console.log('Route data received from backend:', data);
       console.log('Route coordinates:', data.route);
       console.log('Route length:', data.route ? data.route.length : 'No route array');
+
+      // Sample draggable waypoints from the built route polyline.
+      // These points are already on real roads (placed by Valhalla), so
+      // rerouting through them is reliable.
+      // Using 5 waypoints max to stay within GraphHopper fallback limit.
+      if (data.route && data.route.length >= 2) {
+        const sampled = sampleWaypointsFromRoute(data.route, 5);
+        setWaypoints(sampled);
+        console.log('Sampled waypoints from route polyline:', sampled.length);
+      }
+
+      // Preserve GPT metadata for display across reroutes
+      if (data.gpt_metadata) {
+        originalGptMetadataRef.current = data.gpt_metadata;
+      }
 
       setStats({
         distanceKm: data.total_distance_km || data.total_length_km || data.total_distance || null,
@@ -225,6 +286,142 @@ const GenerateRoutes = () => {
     }
   };
 
+  // Handle waypoint drag — reroute automatically when user moves a waypoint
+  const handleWaypointDrag = async (waypointIndex, newLat, newLon) => {
+    console.log('=== WAYPOINT DRAG START ===');
+    console.log('Waypoint index:', waypointIndex);
+    console.log('New position:', { lat: newLat, lon: newLon });
+    console.log('Current waypoints:', JSON.stringify(waypoints));
+    console.log('Is currently rerouting?', isRerouting);
+
+    if (isRerouting) {
+      console.log('Reroute blocked - already in progress');
+      return;
+    }
+
+    // Save previous state for reverting on error
+    previousWaypointsRef.current = [...waypoints];
+    const previousRouteData = routeData;
+
+    // Update the dragged waypoint
+    const updatedWaypoints = waypoints.map((wp, i) =>
+      i === waypointIndex ? { ...wp, lat: newLat, lon: newLon } : wp
+    );
+    setWaypoints(updatedWaypoints);
+
+    // Reroute through backend
+    setIsRerouting(true);
+    setError(null);
+
+    try {
+      console.log('=== CALLING REROUTE API ===');
+      console.log('Updated waypoints being sent:', JSON.stringify(updatedWaypoints));
+      console.log('Preferences:', JSON.stringify({ ...preferences, unitSystem: distLabel(units) }));
+
+      const data = await rerouteWithWaypoints(updatedWaypoints, {
+        ...preferences,
+        unitSystem: distLabel(units),
+      });
+
+      console.log('=== REROUTE API SUCCESS ===');
+      console.log('Response data keys:', Object.keys(data));
+      console.log('New route length:', data.route?.length);
+
+      // Preserve the original GPT metadata (route name, description) across reroutes
+      if (originalGptMetadataRef.current) {
+        data.gpt_metadata = originalGptMetadataRef.current;
+      }
+
+      setRouteData(data);
+      setIsRouteModified(true);
+
+      // Keep the waypoints the user set - don't re-sample them.
+      // The backend (Valhalla) automatically snaps waypoints to roads,
+      // and the route polyline reflects the actual road path.
+      // Re-sampling would cause all waypoints to move when dragging just one.
+      setWaypoints(updatedWaypoints);
+
+      // Update stats
+      setStats((prev) => ({
+        ...prev,
+        distanceKm: data.total_distance_km || data.total_length_km || data.total_distance || null,
+        distanceFormatted:
+          data.total_length_formatted ||
+          (data.total_distance && data.total_distance_unit
+            ? `${data.total_distance.toFixed(2)} ${data.total_distance_unit}`
+            : null),
+        elevationM: data.elevation_gain_m || data.total_elevation_gain || null,
+        totalRideTime: data.total_ride_time || null,
+      }));
+
+      // Update instructions
+      if (data.instructions && data.instructions.length > 0) {
+        setInstructions(data.instructions);
+        setCueSheet([]);
+      }
+
+      console.log('Reroute successful:', {
+        waypoints: updatedWaypoints.length,
+        routePoints: data.route?.length,
+      });
+    } catch (err) {
+      console.error('=== REROUTE API FAILED ===');
+      console.error('Error object:', err);
+      console.error('Error message:', err.message);
+      console.error('Error stack:', err.stack);
+      console.error('Waypoints that failed:', JSON.stringify(updatedWaypoints));
+      // Revert waypoints and route on failure
+      setWaypoints(previousWaypointsRef.current);
+      setRouteData(previousRouteData);
+
+      // Provide specific error messages based on the error type
+      let errorMessage = 'Could not reroute to this location. The waypoint has been reverted.';
+      if (err.message === 'REROUTE_SERVER_ERROR') {
+        errorMessage = 'Routing service temporarily unavailable. Please try again in a moment.';
+      } else if (err.message === 'INVALID_WAYPOINTS') {
+        errorMessage = 'Invalid waypoint location. Try moving the marker to a nearby road.';
+      } else if (err.message === 'REROUTE_NETWORK_ERROR') {
+        errorMessage = 'Network error — check your connection and try again.';
+      } else if (err.message.includes('timeout') || err.message.includes('TIMEOUT')) {
+        errorMessage = 'Routing took too long. Try moving the waypoint closer to the route.';
+      } else if (err.message.includes('No valid route') || err.message.includes('NO_ROUTE')) {
+        errorMessage = 'Cannot find a bikeable route through this location. Try a different spot.';
+      }
+      setError(errorMessage);
+
+      // Clear the error after 5 seconds
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsRerouting(false);
+    }
+  };
+
+  // DEBUG: Manual test reroute with known-good waypoints
+  const testReroute = async () => {
+    console.log('=== MANUAL TEST REROUTE ===');
+    const testWaypoints = [
+      { lat: 37.7749, lon: -122.4194 }, // San Francisco
+      { lat: 37.7849, lon: -122.4094 },
+      { lat: 37.7949, lon: -122.3994 }
+    ];
+
+    try {
+      const data = await rerouteWithWaypoints(testWaypoints, {
+        bikeLanes: false,
+        avoidHills: false,
+        avoidHighTraffic: false,
+        unitSystem: 'km',
+        routeType: 'scenic'
+      });
+      console.log('Test reroute SUCCESS:', data);
+      console.log('Route points:', data.route?.length);
+      alert('Test reroute SUCCESS - check console for details');
+    } catch (err) {
+      console.error('Test reroute FAILED:', err);
+      alert('Test reroute FAILED: ' + err.message + ' - check console for details');
+    }
+  };
+
   const hasPreferences =
     preferences.startingPoint || preferences.endingPoint || location;
 
@@ -263,6 +460,14 @@ const GenerateRoutes = () => {
                 "Generate Route"
               )}
             </Button>
+
+            {/* DEBUG: Test Reroute Button */}
+            {/* <Button
+              className="w-full mt-2 !bg-yellow-600 hover:!bg-yellow-700"
+              onClick={testReroute}
+            >
+              [DEBUG] Test Reroute API
+            </Button> */}
 
             {/* Error Display */}
             {error && (
@@ -308,6 +513,12 @@ const GenerateRoutes = () => {
               routeData={routeData}
               isGenerating={isGenerating}
               endingPointCoords={preferences.endingPointCoords}
+              waypoints={waypoints}
+              showIntermediateWaypoints={showIntermediateWaypoints}
+              setShowIntermediateWaypoints={setShowIntermediateWaypoints}
+              onWaypointDrag={handleWaypointDrag}
+              isRerouting={isRerouting}
+              isRouteModified={isRouteModified}
             />
           </motion.div>
         </div>

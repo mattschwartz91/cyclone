@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { OPENAI_API_KEY, OPENAI_API_URL } = require('../config/config');
+const { OPENAI_API_KEY, OPENAI_API_URL, OPENAI_MODEL } = require('../config/config');
 const { calculateDistance } = require('../utils/calculationsUtils');
 
 /**
@@ -50,7 +50,9 @@ function calculateDistanceRequirements(targetDistance, unitSystem) {
     distanceGuidance = `For shorter routes like this ${targetDistance}-${unitLabelSingular} ride, waypoints should be closer together to ensure you hit the target distance. Consider local loops, neighborhood circuits, or nearby park connections.`;
   } else if (targetDistance < mediumThreshold) {
     distanceGuidance = `For longer routes like this ${targetDistance}-${unitLabelSingular} ride, balance interesting destinations with practical routing. Use as many waypoints needed to help reach the target distance. Be sure to include notable areas or landmarks.`;
-  } 
+  } else {
+    distanceGuidance = `This is a long ${targetDistance}-${unitLabelSingular} route. Push waypoints well away from the start — spread them across a wide area so the road distance between them adds up to the target. Avoid clustering waypoints near the origin.`;
+  }
   
   return {
     minWaypoints: category.waypoints.min,
@@ -160,12 +162,12 @@ IMPORTANT: You must respond with a JSON object containing:
 CRITICAL REQUIREMENTS FOR ${target_distance} ${unitLabelSingular.toUpperCase()} ROUTES:
 - The first waypoint MUST be the exact starting location provided: ${start.lat}, ${start.lon}
 - The last waypoint MUST be the exact ending location provided: ${end ? `${end.lat}, ${end.lon}` : `${start.lat}, ${start.lon}`}
-- Do not limit the number of waypoints when generating a route. Use as many as needed to help the user reach their target distance of ${target_distance} ${unitLabelSingular}. 
-- Each waypoint should be a notable or popular landmark, destination, or area worth visiting on a bike tour around town. 
-- The primary goal is to ensure the user reaches their target distance of ${target_distance} ${unitLabelSingular}. 
+- Use between ${distanceReqs.minWaypoints} and ${distanceReqs.maxWaypoints} intermediate waypoints, with each consecutive pair spaced roughly ${distanceReqs.waypointSpacing}.
+- Each waypoint should be a notable or popular landmark, destination, or area worth visiting on a bike tour around town.
+- The primary goal is to ensure the user reaches their target distance of ${target_distance} ${unitLabelSingular}.
 - Be as accurate as possible with the waypoints to ensure the route is close to this ${target_distance} ${unitLabelSingular}.
 - At the same time, tailor the chosen waypoints to match the user's preferences ${route_type}, so that the route not only achieves the distance goal but also reflects the user's interests and enhances their overall experience.
-- For loop routes (same start/end), create waypoints that form a circuit back to the starting point
+- For loop routes (same start/end), spread waypoints evenly around a circle — think of them as clock positions (12, 3, 6, 9 o'clock) to avoid out-and-back paths that overlap.
 - Consider the route type when placing intermediate waypoints (scenic = paved roads with views, city = urban neighborhoods, etc.)`;
 
   const userPrompt = `Generate me a bike route ${toggleOptions}. I want to get from ${startLocation} to ${endLocation}. The total distance of the route should be as close to ${target_distance} ${unitLabelPlural} as possible. I want my bike ride to be ${routeTypeDescription}.
@@ -175,13 +177,13 @@ DISTANCE REQUIREMENTS: This is a ${target_distance} ${unitLabelSingular} route r
 WAYPOINT SPECIFICATIONS:
 - Start at: ${start.lat}, ${start.lon} (EXACT coordinates required)
 - End at: ${end ? `${end.lat}, ${end.lon}` : `${start.lat}, ${start.lon}`} (EXACT coordinates required)
-- Use as many waypoints as needed to reach the target distance of ${target_distance} ${unitLabelSingular}
+- Use ${distanceReqs.minWaypoints}–${distanceReqs.maxWaypoints} intermediate waypoints, each pair spaced ${distanceReqs.waypointSpacing}
 - Each waypoint should align with the ${route_type} route type${route_type === 'custom' && custom_description && custom_description.trim() ? ` and incorporate the custom preferences: "${custom_description.trim()}"` : ''}
 
-CRITICAL: 
-- Your goal is to minimize the error between the actual route distance and the ${target_distance} in ${unitLabelSingular}. 
-- If multiple candidate routes are possible, select the one with the smallest deviation. 
-- You may apply statistical approaches (such as evaluating standard deviation of distance options) to optimize accuracy.`
+CRITICAL:
+- Your goal is to minimize the error between the actual route distance and the ${target_distance} in ${unitLabelSingular}.
+- If multiple candidate routes are possible, select the one with the smallest deviation.
+- You may apply statistical approaches (such as evaluating standard deviation of distance options) to optimize accuracy.${!end ? `\n\nLOOP ROUTE GEOMETRY: This is a loop route returning to the start. Place intermediate waypoints at evenly distributed compass bearings (e.g., north, east, south, west — like clock positions 12, 3, 6, 9) so the route forms a genuine loop rather than an out-and-back path. Each waypoint must be at least ${distanceReqs.waypointSpacing} from its neighbors measured in a straight line.` : ''}${options._distanceHint ? `\n\nPREVIOUS ATTEMPT FEEDBACK: ${options._distanceHint}` : ''}`
 
   return { systemPrompt, userPrompt };
 }
@@ -196,7 +198,7 @@ async function callOpenAI(prompts) {
 
   try {
     const response = await axios.post(OPENAI_API_URL, {
-      model: 'gpt-4.1', 
+      model: OPENAI_MODEL, 
       messages: [
         {
           role: 'system',
@@ -207,8 +209,9 @@ async function callOpenAI(prompts) {
           content: prompts.userPrompt
         }
       ],
-      temperature: 0.7,
-      max_tokens: 1000
+      temperature: 0.2,
+      max_tokens: 2000,
+      response_format: { type: 'json_object' }
     }, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,

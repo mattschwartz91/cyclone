@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react';
+import ComingSoonModal from '../components/ComingSoonModal';
 
 const AuthModalContext = createContext();
 
@@ -22,8 +23,9 @@ export const AuthModalProvider = ({ children }) => {
     type: MODAL_TYPES.SIGNUP,
   });
 
-  const openAuthModal = (type) => {
-    setAuthModal({ isOpen: true, type });
+  const openAuthModal = (_type) => {
+    // All auth actions now show the Coming Soon modal
+    setAuthModal({ isOpen: true, type: 'coming-soon' });
   };
 
   const closeAuthModal = () => {
@@ -39,6 +41,7 @@ export const AuthModalProvider = ({ children }) => {
       }}
     >
       {children}
+      <ComingSoonModal isOpen={authModal.isOpen} onClose={closeAuthModal} />
     </AuthModalContext.Provider>
   );
 };
